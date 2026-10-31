@@ -73,41 +73,37 @@
   <script src="js/app.js"></script>
   <script>
   (function(){
-    var el=document.getElementById('visitorCount');
+    var el = document.getElementById('visitorCount');
+    var counted = sessionStorage.getItem('jim.vc');
     
-    // Use visitor-badge.laobi.icu — free, reliable, no signup
-    // It returns an SVG badge — we parse the count from it
-    fetch('https://visitor-badge.laobi.icu/badge?page_id=javabypankaj.netlify.app')
-      .then(function(r){ return r.text(); })
-      .then(function(svg){
-        // Extract number from SVG text
-        var match = svg.match(/>(\d+)<\/text>/);
-        if(match){
-          var count = parseInt(match[1], 10);
-          el.textContent = count;
-          localStorage.setItem('jim.vcount', String(count));
-        } else {
-          // Try another pattern
-          var match2 = svg.match(/(\d+)\s*<\/text>\s*<\/g>/);
-          if(match2) {
-            el.textContent = match2[1];
-            localStorage.setItem('jim.vcount', match2[1]);
-          } else {
-            el.textContent = localStorage.getItem('jim.vcount') || '1';
-          }
-        }
-      })
-      .catch(function(){
-        // Fallback: local counter
-        var key = 'jim.vcount';
-        var n = parseInt(localStorage.getItem(key) || '0', 10);
-        if (!sessionStorage.getItem('jim.vc')) {
-          n++;
-          localStorage.setItem(key, String(n));
+    if (!counted) {
+      // New visit — increment counter (POST)
+      fetch('/api/counter', { method: 'POST' })
+        .then(function(r) { return r.json(); })
+        .then(function(d) {
+          el.textContent = d.count;
+          localStorage.setItem('jim.vcount', String(d.count));
           sessionStorage.setItem('jim.vc', '1');
-        }
-        el.textContent = n;
-      });
+        })
+        .catch(function() {
+          // Fallback: local counter
+          var n = parseInt(localStorage.getItem('jim.vcount') || '0', 10) + 1;
+          localStorage.setItem('jim.vcount', String(n));
+          sessionStorage.setItem('jim.vc', '1');
+          el.textContent = n;
+        });
+    } else {
+      // Already counted this session — just read (GET)
+      fetch('/api/counter')
+        .then(function(r) { return r.json(); })
+        .then(function(d) {
+          el.textContent = d.count;
+          localStorage.setItem('jim.vcount', String(d.count));
+        })
+        .catch(function() {
+          el.textContent = localStorage.getItem('jim.vcount') || '0';
+        });
+    }
   })();
   </script>
   <script data-goatcounter="https://java-interview-mastery.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>

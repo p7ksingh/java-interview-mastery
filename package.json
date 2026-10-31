@@ -1,0 +1,24 @@
+{
+  "name": "java-interview-website",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/p7ksingh/pankaj-java-mastery.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/p7ksingh/pankaj-java-mastery/issues"
+  },
+  "homepage": "https://github.com/p7ksingh/pankaj-java-mastery#readme",
+  "dependencies": {
+    "@netlify/blobs": "^11.1.7"
+  }
+}
