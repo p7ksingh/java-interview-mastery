@@ -196,6 +196,8 @@ table th{font-weight:700;background:#f8f8f8;}
 .popup__msg.ok{color:#188038;background:#e6f4ea;}
 .popup__msg.err{color:#c5221f;background:#fce8e6;}
 .popup__note{font-size:12px;color:#999;margin-top:16px;}
+.popup__skip{display:inline-block;margin-top:12px;font-size:13px;color:#999;cursor:pointer;text-decoration:underline;}
+.popup__skip:hover{color:#666;}
 
 /* ===== SHARE BUTTONS ===== */
 .share-bar{display:flex;align-items:center;gap:8px;margin:16px 0;flex-wrap:wrap;}

@@ -584,9 +584,13 @@ function formatTime(sec) {
     if (overlay) overlay.hidden = false;
   }, 30000);
 
-  // Close button
+  // Close button + "No thanks"
   document.addEventListener('click', function(e){
-    if (e.target.id === 'popupClose' || (e.target.id === 'popupOverlay' && e.target === e.currentTarget)) {
+    if (e.target.id === 'popupClose' || e.target.id === 'popupSkip') {
+      document.getElementById('popupOverlay').hidden = true;
+      localStorage.setItem('jim.popup.shown', '1');
+    }
+    if (e.target.id === 'popupOverlay') {
       document.getElementById('popupOverlay').hidden = true;
       localStorage.setItem('jim.popup.shown', '1');
     }
@@ -613,6 +617,10 @@ function formatTime(sec) {
         msg.textContent = d.msg || 'Subscribed! Welcome aboard.';
         localStorage.setItem('jim.popup.shown', '1');
         form.style.display = 'none';
+        // Auto-close after 2 seconds
+        setTimeout(function(){
+          document.getElementById('popupOverlay').hidden = true;
+        }, 2000);
       } else {
         msg.className = 'popup__msg err';
         msg.textContent = d.error || 'Something went wrong.';
