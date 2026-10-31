@@ -27,8 +27,9 @@ button{font-family:var(--font);cursor:pointer;border:none;background:none;}
 .topbar{
   display:flex;align-items:center;justify-content:space-between;
   height:56px;padding:0 24px;
-  background:linear-gradient(135deg,#2c3e50,#3a5068);
+  background:linear-gradient(135deg,#1e3a5f,#2d5986,#1e3a5f);
   color:#fff;position:sticky;top:0;z-index:100;
+  box-shadow:0 2px 8px rgba(0,0,0,0.12);
 }
 .topbar__left{display:flex;align-items:center;gap:12px;}
 .topbar__logo{font-size:22px;}
@@ -175,6 +176,40 @@ table{width:100%;border-collapse:collapse;margin:12px 0;font-size:13px;}
 table th,table td{padding:8px 12px;text-align:left;border-bottom:1px solid #eee;}
 table th{font-weight:700;background:#f8f8f8;}
 
+/* ===== FOOTER ===== */
+.footer{
+  background:linear-gradient(135deg,#1e3a5f,#2d5986);
+  color:#fff;margin-top:60px;
+}
+.footer__inner{
+  max-width:1200px;margin:0 auto;padding:40px 24px 24px;
+  display:grid;grid-template-columns:1fr 1.5fr 1fr;gap:32px;
+  align-items:start;
+}
+.footer__brand{display:flex;align-items:center;gap:12px;}
+.footer__logo{font-size:28px;}
+.footer__title{font-size:16px;font-weight:700;}
+.footer__subtitle{font-size:13px;opacity:0.7;margin-top:2px;}
+.footer__about p{font-size:14px;line-height:1.6;opacity:0.85;margin-top:8px;}
+.footer__label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;opacity:0.5;margin-bottom:12px;}
+.footer__links{display:flex;flex-direction:column;gap:10px;}
+.footer__link{
+  display:inline-flex;align-items:center;gap:8px;
+  color:#fff;text-decoration:none;font-size:14px;
+  opacity:0.85;transition:opacity 0.2s;
+}
+.footer__link:hover{opacity:1;text-decoration:underline;}
+.footer__link-icon{
+  width:28px;height:28px;border-radius:6px;
+  background:rgba(255,255,255,0.15);display:grid;place-items:center;
+  font-size:12px;font-weight:700;flex-shrink:0;
+}
+.footer__bottom{
+  max-width:1200px;margin:0 auto;padding:16px 24px;
+  border-top:1px solid rgba(255,255,255,0.15);
+  font-size:12px;opacity:0.5;text-align:center;
+}
+
 /* ===== RESPONSIVE ===== */
 @media(max-width:768px){
   .topbar{padding:0 14px;height:50px;}
@@ -191,6 +226,7 @@ table th{font-weight:700;background:#f8f8f8;}
   .article__title{font-size:18px;}
   .sec{padding:14px;}
   pre{font-size:11px;padding:10px;}
+  .footer__inner{grid-template-columns:1fr;gap:24px;padding:30px 16px 20px;}
 }
 @media(max-width:480px){
   .topbar__brand{display:none;}
