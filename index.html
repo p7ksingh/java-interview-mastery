@@ -3,7 +3,26 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Java Interview Mastery</title>
+  <title>Java Interview Mastery — 2,506 Questions by Pankaj Singh</title>
+  <meta name="description" content="Master 2,506 Java interview questions across 28 chapters — Core Java, Spring Boot, Microservices, Kafka, System Design, DSA and more. Each with code, HLD/LLD diagrams, and banking domain examples.">
+  <meta name="keywords" content="Java interview questions, Spring Boot, Microservices, System Design, Kafka, JPA, Hibernate, Concurrency, Collections, DSA, REST API, Design Patterns">
+  <meta name="author" content="Pankaj Singh">
+  <meta name="robots" content="index, follow">
+  <link rel="canonical" href="https://javabypankaj.netlify.app/">
+
+  <!-- Open Graph (LinkedIn, Facebook) -->
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="Java Interview Mastery — 2,506 Questions with Industry Answers">
+  <meta property="og:description" content="2,506 real Java interview questions organized into 1,261 micro-topics across 28 chapters. Every answer has code, HLD/LLD diagrams, and banking domain examples.">
+  <meta property="og:url" content="https://javabypankaj.netlify.app/">
+  <meta property="og:site_name" content="Java Interview Mastery by Pankaj Singh">
+  <meta property="og:image" content="https://javabypankaj.netlify.app/og-image.svg">
+
+  <!-- Twitter Card -->
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Java Interview Mastery — 2,506 Questions">
+  <meta name="twitter:description" content="Master Java interviews with 2,506 questions, code examples, and HLD/LLD diagrams.">
+
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='16' fill='%234A90D9'/%3E%3Ctext x='16' y='22' font-family='sans-serif' font-size='17' font-weight='700' text-anchor='middle' fill='white'%3EJ%3C/text%3E%3C/svg%3E">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/style.css">
@@ -41,6 +60,22 @@
     <button class="qnav__btn" id="prevBtn">← Prev</button>
     <span class="qnav__pos" id="qnavPos"></span>
     <button class="qnav__btn" id="nextBtn">Next →</button>
+  </div>
+
+  <!-- EMAIL POPUP -->
+  <div class="popup-overlay" id="popupOverlay" hidden>
+    <div class="popup">
+      <button class="popup__close" id="popupClose">✕</button>
+      <div class="popup__icon">📬</div>
+      <h3 class="popup__title">Get Weekly Java Interview Tips</h3>
+      <p class="popup__text">Join developers preparing for top company interviews. Free, no spam.</p>
+      <form class="popup__form" id="subscribeForm">
+        <input type="email" id="subEmail" placeholder="Your email address" required>
+        <button type="submit" class="btn btn--primary">Subscribe</button>
+      </form>
+      <div class="popup__msg" id="subMsg" hidden></div>
+      <p class="popup__note">2,506 questions · 28 chapters · 100% free</p>
+    </div>
   </div>
 
   <footer class="footer">

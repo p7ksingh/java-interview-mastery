@@ -53,6 +53,7 @@ function goHome(){
       '<td>'+statusPill+'</td></tr>';
   });
   html+='</tbody></table>';
+  html+=shareBar();
   body.innerHTML=html;
   bindC(body,'[data-go]',function(el){nav(el.dataset.go||el.closest('[data-go]').dataset.go);});
   scrollTo(0,0);
@@ -159,6 +160,7 @@ function goTopic(ch,ti){
       }
       if(sec.s6_takeaway){html+='<div class="sec sec--green"><div class="sec__head">✅ Takeaway</div><div class="takeaway">'+rMd(sec.s6_takeaway)+'</div></div>';}
 
+      html+=shareBar(a.question, 'https://javabypankaj.netlify.app/#/q/' + a.id);
       html+='</div></div>';
     });
 
@@ -569,4 +571,88 @@ function formatTime(sec) {
   if (sec < 3600) return Math.round(sec/60) + 'm';
   return Math.round(sec/3600) + 'h ' + Math.round((sec%3600)/60) + 'm';
 }
+
+// ===== EMAIL POPUP =====
+(function(){
+  var shown = localStorage.getItem('jim.popup.shown');
+  if (shown) return;
+
+  // Show after 30 seconds
+  setTimeout(function(){
+    if (localStorage.getItem('jim.popup.shown')) return;
+    var overlay = document.getElementById('popupOverlay');
+    if (overlay) overlay.hidden = false;
+  }, 30000);
+
+  // Close button
+  document.addEventListener('click', function(e){
+    if (e.target.id === 'popupClose' || (e.target.id === 'popupOverlay' && e.target === e.currentTarget)) {
+      document.getElementById('popupOverlay').hidden = true;
+      localStorage.setItem('jim.popup.shown', '1');
+    }
+  });
+
+  // Subscribe form
+  var form = document.getElementById('subscribeForm');
+  if (form) form.addEventListener('submit', function(e){
+    e.preventDefault();
+    var email = document.getElementById('subEmail').value.trim();
+    var msg = document.getElementById('subMsg');
+    var btn = form.querySelector('button');
+    btn.textContent = 'Sending...';
+    btn.disabled = true;
+
+    fetch('/api/subscribe', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ email: email, source: 'popup' })
+    }).then(function(r){ return r.json(); }).then(function(d){
+      msg.hidden = false;
+      if (d.ok) {
+        msg.className = 'popup__msg ok';
+        msg.textContent = d.msg || 'Subscribed! Welcome aboard.';
+        localStorage.setItem('jim.popup.shown', '1');
+        form.style.display = 'none';
+      } else {
+        msg.className = 'popup__msg err';
+        msg.textContent = d.error || 'Something went wrong.';
+        btn.textContent = 'Subscribe';
+        btn.disabled = false;
+      }
+    }).catch(function(){
+      msg.hidden = false;
+      msg.className = 'popup__msg err';
+      msg.textContent = 'Network error. Try again.';
+      btn.textContent = 'Subscribe';
+      btn.disabled = false;
+    });
+  });
+})();
+
+// ===== SHARE BUTTONS =====
+function shareBar(pageTitle, pageUrl) {
+  if (!pageUrl) pageUrl = 'https://javabypankaj.netlify.app/';
+  if (!pageTitle) pageTitle = 'Java Interview Mastery — 2,506 Questions';
+  var encodedUrl = encodeURIComponent(pageUrl);
+  var encodedTitle = encodeURIComponent(pageTitle);
+
+  return '<div class="share-bar">' +
+    '<span class="share-bar__label">Share:</span>' +
+    '<a class="share-btn share-btn--in" href="https://www.linkedin.com/sharing/share-offsite/?url=' + encodedUrl + '" target="_blank">in LinkedIn</a>' +
+    '<a class="share-btn share-btn--tw" href="https://twitter.com/intent/tweet?text=' + encodedTitle + '&url=' + encodedUrl + '" target="_blank">𝕏 Twitter</a>' +
+    '<a class="share-btn share-btn--wa" href="https://wa.me/?text=' + encodedTitle + '%20' + encodedUrl + '" target="_blank">💬 WhatsApp</a>' +
+    '<button class="share-btn" onclick="copyLink()">📋 Copy Link</button>' +
+    '</div>';
+}
+
+window.copyLink = function() {
+  var url = 'https://javabypankaj.netlify.app/' + (location.hash || '');
+  (navigator.clipboard ? navigator.clipboard.writeText(url) : Promise.reject()).then(function(){
+    alert('Link copied!');
+  }).catch(function(){
+    var ta = document.createElement('textarea'); ta.value = url; ta.style.cssText = 'position:fixed;opacity:0';
+    document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta);
+    alert('Link copied!');
+  });
+};
 })();
