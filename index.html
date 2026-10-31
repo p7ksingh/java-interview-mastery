@@ -74,26 +74,37 @@
   <script>
   (function(){
     var el=document.getElementById('visitorCount');
-    // Use hits.dwyl.com — free, no signup, always works
-    var img = new Image();
-    img.onload = function(){};
-    img.src = 'https://hits.dwyl.com/p7ksingh/javabypankaj.svg';
     
-    // Fetch the count from the badge API
-    fetch('https://hits.dwyl.com/p7ksingh/javabypankaj.json')
-      .then(function(r){ return r.json(); })
-      .then(function(d){
-        var count = d.count || d.message || 0;
-        el.textContent = count;
+    // Use visitor-badge.laobi.icu — free, reliable, no signup
+    // It returns an SVG badge — we parse the count from it
+    fetch('https://visitor-badge.laobi.icu/badge?page_id=javabypankaj.netlify.app')
+      .then(function(r){ return r.text(); })
+      .then(function(svg){
+        // Extract number from SVG text
+        var match = svg.match(/>(\d+)<\/text>/);
+        if(match){
+          var count = parseInt(match[1], 10);
+          el.textContent = count;
+          localStorage.setItem('jim.vcount', String(count));
+        } else {
+          // Try another pattern
+          var match2 = svg.match(/(\d+)\s*<\/text>\s*<\/g>/);
+          if(match2) {
+            el.textContent = match2[1];
+            localStorage.setItem('jim.vcount', match2[1]);
+          } else {
+            el.textContent = localStorage.getItem('jim.vcount') || '1';
+          }
+        }
       })
       .catch(function(){
-        // Fallback: use localStorage counter
-        var key = 'jim.local.visits';
+        // Fallback: local counter
+        var key = 'jim.vcount';
         var n = parseInt(localStorage.getItem(key) || '0', 10);
-        if (!sessionStorage.getItem('jim.counted')) {
+        if (!sessionStorage.getItem('jim.vc')) {
           n++;
           localStorage.setItem(key, String(n));
-          sessionStorage.setItem('jim.counted', '1');
+          sessionStorage.setItem('jim.vc', '1');
         }
         el.textContent = n;
       });
