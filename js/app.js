@@ -42,12 +42,14 @@ function goHome(){
   S.ch.forEach(function(c){
     var g=findG(c.chapter),tc=g?g.topics.length:0;
     var revN=countR(c.chapter),done=revN===c.count;
+    var pct=c.count?Math.round(revN/c.count*100):0;
+    var barColor=pct===0?'':'prog-fill--'+(pct>=100?'green':pct>=50?'orange':'red');
     var statusPill=revN===0?'<span class="pill pill--gray">Not Started</span>':
       done?'<span class="pill pill--green">✓ Complete</span>':
       '<span class="pill pill--orange">'+revN+'/'+c.count+' Done</span>';
     html+='<tr data-go="#/chapter/'+c.chapter+'">'+
       '<td><span class="badge badge--num">'+pad(c.chapter)+'</span></td>'+
-      '<td><strong>'+esc(c.chapterTitle)+'</strong></td>'+
+      '<td><strong>'+esc(c.chapterTitle)+'</strong><div class="prog-bar"><div class="prog-fill '+barColor+'" style="width:'+pct+'%"></div></div></td>'+
       '<td><span class="pill pill--blue">'+tc+' topics</span></td>'+
       '<td>'+c.count+'</td>'+
       '<td>'+statusPill+'</td></tr>';
@@ -145,11 +147,18 @@ function goTopic(ch,ti){
       // Close dropdown
       document.getElementById('cddList').hidden=true;
       // Render answer
+      var bm=isBookmarked(a.id);
       var h='<div class="qa-single">';
-      h+='<div class="qa-single__id">'+esc(a.id)+' · Question '+(idx+1)+' of '+tAns.length+'</div>';
+      h+='<div class="qa-single__id">'+esc(a.id)+' · Question '+(idx+1)+' of '+tAns.length+' <button class="bmark-btn'+(bm?' is-saved':'')+'" onclick="toggleBookmark(\''+a.id+'\',this)" title="'+(bm?'Remove bookmark':'Bookmark this question')+'">'+(bm?'❤️':'🤍')+'</button></div>';
       h+='<h2 class="qa-single__q">'+esc(a.question)+'</h2>';
       h+='<button class="rev-btn '+(rev?'rev-btn--done':'')+'" id="revBtn" data-qid="'+a.id+'" title="'+(rev?'Click to unmark':'Click to mark as reviewed')+'">'+(rev?'✅ Reviewed':'📝 Mark as Reviewed')+'</button>';
-      h+='<div class="qa-single__body">'+renderOneAnswer(a)+'</div></div>';
+      h+='<div class="qa-single__body">'+renderOneAnswer(a)+'</div>';
+      // Notes section
+      var noteVal=getNote(a.id);
+      h+='<div class="notes-wrap"><div class="notes-label">📝 Your Notes</div>';
+      h+='<textarea class="notes-area" placeholder="Write your notes for this question..." oninput="saveNoteDebounced(\''+a.id+'\',this.value,this.nextElementSibling)">'+esc(noteVal)+'</textarea>';
+      h+='<div class="notes-saved">✓ Saved</div></div>';
+      h+='</div>';
       document.getElementById('qAnswer').innerHTML=h;
       document.getElementById('qP').disabled=idx===0;
       document.getElementById('qN').disabled=idx===tAns.length-1;
@@ -679,4 +688,56 @@ window.copyLink = function() {
     alert('Link copied!');
   });
 };
+
+// ===== FEATURE 1: DARK MODE =====
+(function(){
+  var LS_DARK='jim.dark';
+  var btn=document.getElementById('darkToggle');
+  if(localStorage.getItem(LS_DARK)==='1'){document.body.classList.add('dark');btn.textContent='☀️';}
+  btn.onclick=function(){
+    document.body.classList.toggle('dark');
+    var on=document.body.classList.contains('dark');
+    localStorage.setItem(LS_DARK,on?'1':'0');
+    btn.textContent=on?'☀️':'🌙';
+  };
+})();
+
+// ===== FEATURE 2: RANDOM QUESTION =====
+window.goRandomQuestion=function(){
+  var chapters=document.querySelectorAll('[data-go^="#/chapter/"]');
+  if(!chapters.length)return;
+  // Pick random chapter
+  fetch('data/chapters.json').then(function(r){return r.json();}).then(function(d){
+    var chs=d.chapters;
+    var rch=chs[Math.floor(Math.random()*chs.length)];
+    fetch('data/chapters_grouped.json').then(function(r){return r.json();}).then(function(g){
+      var gch=null;
+      for(var i=0;i<g.chapters.length;i++){if(g.chapters[i].chapter===rch.chapter){gch=g.chapters[i];break;}}
+      if(!gch||!gch.topics.length)return;
+      var rt=Math.floor(Math.random()*gch.topics.length);
+      var rq=Math.floor(Math.random()*gch.topics[rt].ids.length);
+      location.hash='#/chapter/'+rch.chapter+'/topic/'+rt;
+    });
+  });
+};
+
+// ===== FEATURE 3: BOOKMARKS =====
+var LS_BMARKS='jim.bookmarks';
+function getBookmarks(){try{return new Set(JSON.parse(localStorage.getItem(LS_BMARKS)||'[]'));}catch(e){return new Set();}}
+function saveBookmarks(set){localStorage.setItem(LS_BMARKS,JSON.stringify(Array.from(set)));}
+window.toggleBookmark=function(id,btn){
+  var bm=getBookmarks();
+  if(bm.has(id))bm.delete(id);else bm.add(id);
+  saveBookmarks(bm);
+  if(btn){btn.textContent=bm.has(id)?'❤️':'🤍';btn.classList.toggle('is-saved',bm.has(id));}
+};
+window.isBookmarked=function(id){return getBookmarks().has(id);};
+
+// ===== FEATURE 5: NOTES =====
+var LS_NOTES='jim.notes';
+function getNotes(){try{return JSON.parse(localStorage.getItem(LS_NOTES)||'{}');}catch(e){return {};}}
+function saveNote(id,text){var n=getNotes();if(text.trim())n[id]=text;else delete n[id];localStorage.setItem(LS_NOTES,JSON.stringify(n));}
+window.getNote=function(id){return getNotes()[id]||'';};
+window.saveNoteDebounced=(function(){var t;return function(id,text,savedEl){clearTimeout(t);t=setTimeout(function(){saveNote(id,text);if(savedEl){savedEl.classList.add('show');setTimeout(function(){savedEl.classList.remove('show');},1500);}},500);};})();
+
 })();
