@@ -581,18 +581,18 @@ function formatTime(sec) {
   setTimeout(function(){
     if (localStorage.getItem('jim.popup.shown')) return;
     var overlay = document.getElementById('popupOverlay');
-    if (overlay) overlay.hidden = false;
+    if (overlay) { overlay.hidden = false; overlay.style.display = 'flex'; }
   }, 30000);
 
-  // Close button + "No thanks"
+  // Close button + "No thanks" + click overlay
+  function closePopup() {
+    var ov = document.getElementById('popupOverlay');
+    if (ov) ov.style.display = 'none';
+    localStorage.setItem('jim.popup.shown', '1');
+  }
   document.addEventListener('click', function(e){
-    if (e.target.id === 'popupClose' || e.target.id === 'popupSkip') {
-      document.getElementById('popupOverlay').hidden = true;
-      localStorage.setItem('jim.popup.shown', '1');
-    }
-    if (e.target.id === 'popupOverlay') {
-      document.getElementById('popupOverlay').hidden = true;
-      localStorage.setItem('jim.popup.shown', '1');
+    if (e.target.id === 'popupClose' || e.target.id === 'popupSkip' || e.target.id === 'popupOverlay') {
+      closePopup();
     }
   });
 
@@ -619,7 +619,7 @@ function formatTime(sec) {
         form.style.display = 'none';
         // Auto-close after 2 seconds
         setTimeout(function(){
-          document.getElementById('popupOverlay').hidden = true;
+          closePopup();
         }, 2000);
       } else {
         msg.className = 'popup__msg err';
