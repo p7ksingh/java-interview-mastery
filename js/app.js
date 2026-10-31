@@ -328,4 +328,178 @@ function rDiag(t,k){if(/```/.test(t))return rMd(t);return '<div class="diagram-w
 var KW={};'abstract assert boolean break byte case catch char class continue default do double else enum extends final finally float for if implements import instanceof int interface long native new package private protected public return short static super switch synchronized this throw throws transient try void volatile while var record sealed true false null'.split(' ').forEach(function(k){KW[k]=1;});
 function hlC(c,l){var s=esc(c),st=[];function sh(cl,t){var tk='\x01'+st.length+'\x01';st.push('<span class="'+cl+'">'+t+'</span>');return tk;}var cu=!l||/^(java|js|ts|kotlin|go)$/.test(l);var ha=/^(bash|sh|yaml|yml|python|py)$/.test(l);if(cu){s=s.replace(/\/\*[\s\S]*?\*\//g,function(m){return sh('tk-cm',m);});s=s.replace(/\/\/[^\n]*/g,function(m){return sh('tk-cm',m);});}if(ha||l==='sql'){if(l==='sql')s=s.replace(/--[^\n]*/g,function(m){return sh('tk-cm',m);});s=s.replace(/#[^\n]*/g,function(m){return sh('tk-cm',m);});}s=s.replace(/"(?:\\.|[^"\\\n])*"/g,function(m){return sh('tk-str',m);});s=s.replace(/'(?:\\.|[^'\\\n])*'/g,function(m){return sh('tk-str',m);});s=s.replace(/@[A-Za-z_]\w*/g,function(m){return sh('tk-an',m);});s=s.replace(/\b\d[\d_.]*[fFdDlL]?\b/g,function(m){return sh('tk-num',m);});s=s.replace(/\b[A-Za-z_]\w*\b(\s*\()?/g,function(m,p){var w=p?m.slice(0,m.length-p.length).trim():m,tail=p||'';if(KW[w])return sh('tk-kw',w)+tail;if(tail)return sh('tk-fn',w)+tail;if(/^[A-Z]/.test(w))return sh('tk-ty',w);return m;});s=s.replace(/\x01(\d+)\x01/g,function(_,i){return st[+i];});return s;}
 function cpCode(btn){var pre=btn.closest('.code-wrap').querySelector('pre'),code=pre.querySelector('code'),text=code?code.innerText:pre.innerText;(navigator.clipboard?navigator.clipboard.writeText(text):Promise.reject()).then(function(){btn.textContent='Copied!';setTimeout(function(){btn.textContent='Copy';},1500);}).catch(function(){var ta=document.createElement('textarea');ta.value=text;ta.style.cssText='position:fixed;opacity:0';document.body.appendChild(ta);ta.select();document.execCommand('copy');document.body.removeChild(ta);btn.textContent='Copied!';setTimeout(function(){btn.textContent='Copy';},1500);});}
+
+// ===== SMART ANALYTICS =====
+var _lastPage = '', _pageStart = Date.now();
+
+function trackEvent(type, data) {
+  var payload = { type: type, page: location.hash || '#/home' };
+  if (data) for (var k in data) payload[k] = data[k];
+  // Send time spent on previous page
+  if (_lastPage && type === 'pageview') {
+    payload.timeSpent = Math.round((Date.now() - _pageStart) / 1000);
+  }
+  _lastPage = payload.page;
+  _pageStart = Date.now();
+  // Fire and forget
+  try {
+    navigator.sendBeacon('/api/track', JSON.stringify(payload));
+  } catch(e) {
+    fetch('/api/track', { method: 'POST', body: JSON.stringify(payload), headers: {'Content-Type':'application/json'} }).catch(function(){});
+  }
+}
+
+// Track page views on every route change
+var _origRoute = route;
+route = function() {
+  _origRoute();
+  var hash = location.hash || '#/home';
+  var parts = hash.replace(/^#\/?/,'').split('/').filter(Boolean);
+  var evtData = {};
+  if (parts[0] === 'chapter' && parts[1]) evtData.chapter = parts[1];
+  if (parts[2] === 'topic' && parts[3]) evtData.topic = parts[3];
+  if (parts.length === 5) {
+    evtData.question = parts[1] + '/' + parts[3] + '/' + parts[4];
+    trackEvent('question', evtData);
+  } else {
+    trackEvent('pageview', evtData);
+  }
+};
+
+// Track time spent when leaving
+window.addEventListener('beforeunload', function() {
+  var timeSpent = Math.round((Date.now() - _pageStart) / 1000);
+  if (timeSpent > 2) {
+    try {
+      navigator.sendBeacon('/api/track', JSON.stringify({ type: 'timeupdate', page: location.hash || '#/home', timeSpent: timeSpent }));
+    } catch(e) {}
+  }
+});
+
+// Live counter — update every 30 seconds
+function updateLiveCount() {
+  fetch('/api/live').then(function(r){return r.json();}).then(function(d){
+    var el = document.getElementById('liveCount');
+    if (el) el.textContent = d.count || 0;
+  }).catch(function(){});
+}
+updateLiveCount();
+setInterval(updateLiveCount, 30000);
+
+// Analytics dashboard route
+var _origRoute2 = route;
+route = function() {
+  var hash = location.hash || '';
+  if (hash.indexOf('#/analytics') === 0) {
+    var key = new URLSearchParams(hash.split('?')[1] || '').get('key');
+    if (key === 'pankaj2026') {
+      showAnalytics();
+      return;
+    }
+  }
+  _origRoute2();
+};
+
+function showAnalytics() {
+  var title = document.getElementById('pageTitle');
+  var acts = document.getElementById('pageActions');
+  var body = document.getElementById('pageBody');
+  title.textContent = '📊 Analytics Dashboard';
+  acts.innerHTML = '<span class="pill pill--blue">Admin Only</span>';
+  body.innerHTML = '<div class="loader"><div class="loader__spin"></div></div>';
+
+  fetch('/api/track?stats=true').then(function(r){return r.json();}).then(function(s){
+    var html = '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;margin-bottom:24px">';
+    html += statCard('Total Views', s.totalViews || 0);
+    html += statCard('Unique Visitors', s.uniqueVisitors || 0);
+    html += statCard('Live Now', s.liveNow || 0, 'green');
+    html += statCard('Time Spent', formatTime(s.totalTimeSpent || 0));
+    html += '</div>';
+
+    // Countries
+    if (s.countries) {
+      html += '<div class="article" style="margin-bottom:16px"><h3 style="margin-bottom:12px">🌍 Countries</h3>';
+      html += rankTable(s.countries, 'Country', 'Visits');
+      html += '</div>';
+    }
+
+    // Popular chapters
+    if (s.chapters) {
+      html += '<div class="article" style="margin-bottom:16px"><h3 style="margin-bottom:12px">📚 Popular Chapters</h3>';
+      html += rankTable(s.chapters, 'Chapter', 'Views');
+      html += '</div>';
+    }
+
+    // Popular questions
+    if (s.questions) {
+      html += '<div class="article" style="margin-bottom:16px"><h3 style="margin-bottom:12px">🔥 Most Opened Questions</h3>';
+      var topQ = {};
+      var qKeys = Object.keys(s.questions).sort(function(a,b){return s.questions[b]-s.questions[a];}).slice(0,20);
+      qKeys.forEach(function(k){ topQ[k] = s.questions[k]; });
+      html += rankTable(topQ, 'Question', 'Opens');
+      html += '</div>';
+    }
+
+    // Devices
+    if (s.devices) {
+      html += '<div class="article" style="margin-bottom:16px"><h3 style="margin-bottom:12px">📱 Devices</h3>';
+      html += rankTable(s.devices, 'Device', 'Count');
+      html += '</div>';
+    }
+
+    // Browsers
+    if (s.browsers) {
+      html += '<div class="article" style="margin-bottom:16px"><h3 style="margin-bottom:12px">🌐 Browsers</h3>';
+      html += rankTable(s.browsers, 'Browser', 'Count');
+      html += '</div>';
+    }
+
+    // Hourly heatmap
+    if (s.hours) {
+      html += '<div class="article" style="margin-bottom:16px"><h3 style="margin-bottom:12px">🕐 Activity by Hour (UTC)</h3>';
+      html += '<div style="display:flex;gap:4px;align-items:end;height:120px;padding:8px 0">';
+      var maxH = 0;
+      for (var h=0;h<24;h++) maxH = Math.max(maxH, s.hours[h]||0);
+      for (var h=0;h<24;h++) {
+        var val = s.hours[h]||0;
+        var pct = maxH ? (val/maxH*100) : 0;
+        html += '<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:2px">';
+        html += '<div style="width:100%;background:#4A90D9;border-radius:3px 3px 0 0;height:'+pct+'%;min-height:2px" title="'+val+' views"></div>';
+        html += '<span style="font-size:10px;color:#999">'+h+'</span></div>';
+      }
+      html += '</div></div>';
+    }
+
+    // Daily views
+    if (s.days) {
+      html += '<div class="article" style="margin-bottom:16px"><h3 style="margin-bottom:12px">📅 Daily Views</h3>';
+      html += rankTable(s.days, 'Date', 'Views');
+      html += '</div>';
+    }
+
+    body.innerHTML = html;
+  }).catch(function(e) {
+    body.innerHTML = '<div class="empty"><div class="empty__icon">⚠️</div><div class="empty__title">Could not load analytics: '+e.message+'</div></div>';
+  });
+}
+
+function statCard(label, value, color) {
+  var bg = color === 'green' ? '#e6f4ea' : '#f0f2f5';
+  var col = color === 'green' ? '#188038' : '#333';
+  return '<div style="background:'+bg+';border-radius:8px;padding:16px;text-align:center"><div style="font-size:28px;font-weight:800;color:'+col+'">'+value+'</div><div style="font-size:12px;color:#999;margin-top:4px">'+label+'</div></div>';
+}
+
+function rankTable(obj, col1, col2) {
+  var sorted = Object.keys(obj).sort(function(a,b){return obj[b]-obj[a];});
+  var html = '<table class="tbl"><thead><tr><th>'+col1+'</th><th style="width:100px">'+col2+'</th></tr></thead><tbody>';
+  sorted.forEach(function(k){ html += '<tr><td>'+esc(k)+'</td><td><strong>'+obj[k]+'</strong></td></tr>'; });
+  html += '</tbody></table>';
+  return html;
+}
+
+function formatTime(sec) {
+  if (sec < 60) return sec + 's';
+  if (sec < 3600) return Math.round(sec/60) + 'm';
+  return Math.round(sec/3600) + 'h ' + Math.round((sec%3600)/60) + 'm';
+}
 })();
