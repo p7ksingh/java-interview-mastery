@@ -53,7 +53,6 @@ function goHome(){
       '<td>'+statusPill+'</td></tr>';
   });
   html+='</tbody></table>';
-  html+=shareBar();
   body.innerHTML=html;
   bindC(body,'[data-go]',function(el){nav(el.dataset.go||el.closest('[data-go]').dataset.go);});
   scrollTo(0,0);
@@ -135,6 +134,7 @@ function goTopic(ch,ti){
     html+='<div id="qAnswer"></div>';
     // Nav
     html+='<div class="qnav-bottom"><button class="btn btn--sm btn--outline" id="qP">← Previous</button><span class="qnav-pos" id="qPos">1 / '+tAns.length+'</span><button class="btn btn--sm btn--primary" id="qN">Next →</button></div>';
+    html+='<div class="share-bottom" id="shareBottom"></div>';
     body.innerHTML=html;
     function show(idx){
       if(idx<0||idx>=tAns.length)return;cur=idx;var a=tAns[idx],rev=S.rev.has(a.id);
@@ -154,6 +154,7 @@ function goTopic(ch,ti){
       document.getElementById('qP').disabled=idx===0;
       document.getElementById('qN').disabled=idx===tAns.length-1;
       document.getElementById('qPos').textContent=(idx+1)+' / '+tAns.length;
+      document.getElementById('shareBottom').innerHTML=shareBar(a.question,'https://javabypankaj.netlify.app/#/q/'+a.id);
     }
     show(0);
     // Toggle dropdown
@@ -185,7 +186,6 @@ function renderOneAnswer(a){
   if(sec.s4a_structure||sec.s4d_java||sec.s4e_build){html+='<div class="sec sec--code"><div class="sec__head">💻 Code</div>';if(sec.s4a_structure)html+='<h4>Structure</h4>'+rMd(sec.s4a_structure);if(sec.s4d_java)html+='<h4>Java</h4>'+rMd(sec.s4d_java);if(sec.s4e_build)html+='<h4>Build & Run</h4>'+rMd(sec.s4e_build);html+='</div>';}
   if(sec.s5_journey||sec.s5b_flow||sec.s5c_hld||sec.s5d_lld){html+='<div class="sec"><div class="sec__head">📈 Data Journey</div>';if(sec.s5_journey)html+=rMd(sec.s5_journey);if(sec.s5b_flow)html+='<h4>Flow</h4>'+rMd(sec.s5b_flow);if(sec.s5c_hld)html+='<h4>HLD</h4>'+rDiag(sec.s5c_hld,'HLD');if(sec.s5d_lld)html+='<h4>LLD</h4>'+rDiag(sec.s5d_lld,'LLD');html+='</div>';}
   if(sec.s6_takeaway)html+='<div class="sec sec--green"><div class="sec__head">✅ Takeaway</div><div class="takeaway">'+rMd(sec.s6_takeaway)+'</div></div>';
-  html+=shareBar(a.question,'https://javabypankaj.netlify.app/#/q/'+a.id);
   return html;
 }
 // ===== QUESTION — Full article =====
