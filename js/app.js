@@ -405,95 +405,153 @@ function showAnalytics() {
   var acts = document.getElementById('pageActions');
   var body = document.getElementById('pageBody');
   title.textContent = '📊 Analytics Dashboard';
-  acts.innerHTML = '<span class="pill pill--blue">Admin Only</span>';
+  acts.innerHTML = '<span class="pill pill--blue">Admin Only</span> <button class="btn btn--sm btn--primary" id="refreshStats">↻ Refresh</button>';
   body.innerHTML = '<div class="loader"><div class="loader__spin"></div></div>';
 
+  loadAnalytics(body);
+
+  setTimeout(function(){
+    var rb = document.getElementById('refreshStats');
+    if(rb) rb.onclick = function(){ loadAnalytics(body); };
+  }, 100);
+
+  // Auto-refresh every 30s
+  var _autoRef = setInterval(function(){ loadAnalytics(body); }, 30000);
+  window.addEventListener('hashchange', function(){ clearInterval(_autoRef); }, {once:true});
+}
+
+function loadAnalytics(body) {
   fetch('/api/track?stats=true').then(function(r){return r.json();}).then(function(s){
-    var html = '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;margin-bottom:24px">';
-    html += statCard('Total Views', s.totalViews || 0);
-    html += statCard('Unique Visitors', s.uniqueVisitors || 0);
-    html += statCard('Live Now', s.liveNow || 0, 'green');
-    html += statCard('Time Spent', formatTime(s.totalTimeSpent || 0));
+    var html = '';
+
+    // === TOP STATS CARDS ===
+    html += '<div class="a-grid4">';
+    html += aCard('👁 Total Views', s.totalViews || 0, '#4A90D9');
+    html += aCard('👤 Unique Visitors', s.uniqueVisitors || 0, '#8e44ad');
+    html += aCard('🟢 Live Now', s.liveNow || 0, '#27ae60');
+    html += aCard('⏱ Time Spent', formatTime(s.totalTimeSpent || 0), '#e67e22');
     html += '</div>';
 
-    // Countries
-    if (s.countries) {
-      html += '<div class="article" style="margin-bottom:16px"><h3 style="margin-bottom:12px">🌍 Countries</h3>';
-      html += rankTable(s.countries, 'Country', 'Visits');
-      html += '</div>';
+    // === DAILY VISITORS BAR CHART ===
+    if (s.days && Object.keys(s.days).length > 0) {
+      html += aSection('📅 Daily Visitors', barChart(s.days, '#4A90D9', true));
     }
 
-    // Popular chapters
-    if (s.chapters) {
-      html += '<div class="article" style="margin-bottom:16px"><h3 style="margin-bottom:12px">📚 Popular Chapters</h3>';
-      html += rankTable(s.chapters, 'Chapter', 'Views');
-      html += '</div>';
-    }
-
-    // Popular questions
-    if (s.questions) {
-      html += '<div class="article" style="margin-bottom:16px"><h3 style="margin-bottom:12px">🔥 Most Opened Questions</h3>';
-      var topQ = {};
-      var qKeys = Object.keys(s.questions).sort(function(a,b){return s.questions[b]-s.questions[a];}).slice(0,20);
-      qKeys.forEach(function(k){ topQ[k] = s.questions[k]; });
-      html += rankTable(topQ, 'Question', 'Opens');
-      html += '</div>';
-    }
-
-    // Devices
-    if (s.devices) {
-      html += '<div class="article" style="margin-bottom:16px"><h3 style="margin-bottom:12px">📱 Devices</h3>';
-      html += rankTable(s.devices, 'Device', 'Count');
-      html += '</div>';
-    }
-
-    // Browsers
-    if (s.browsers) {
-      html += '<div class="article" style="margin-bottom:16px"><h3 style="margin-bottom:12px">🌐 Browsers</h3>';
-      html += rankTable(s.browsers, 'Browser', 'Count');
-      html += '</div>';
-    }
-
-    // Hourly heatmap
+    // === HOURLY ACTIVITY ===
     if (s.hours) {
-      html += '<div class="article" style="margin-bottom:16px"><h3 style="margin-bottom:12px">🕐 Activity by Hour (UTC)</h3>';
-      html += '<div style="display:flex;gap:4px;align-items:end;height:120px;padding:8px 0">';
-      var maxH = 0;
-      for (var h=0;h<24;h++) maxH = Math.max(maxH, s.hours[h]||0);
-      for (var h=0;h<24;h++) {
-        var val = s.hours[h]||0;
-        var pct = maxH ? (val/maxH*100) : 0;
-        html += '<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:2px">';
-        html += '<div style="width:100%;background:#4A90D9;border-radius:3px 3px 0 0;height:'+pct+'%;min-height:2px" title="'+val+' views"></div>';
-        html += '<span style="font-size:10px;color:#999">'+h+'</span></div>';
-      }
-      html += '</div></div>';
+      var hourData = {};
+      for (var h = 0; h < 24; h++) hourData[h + ':00'] = s.hours[h] || 0;
+      html += aSection('🕐 Activity by Hour (UTC)', barChart(hourData, '#6366f1', false));
     }
 
-    // Daily views
-    if (s.days) {
-      html += '<div class="article" style="margin-bottom:16px"><h3 style="margin-bottom:12px">📅 Daily Views</h3>';
-      html += rankTable(s.days, 'Date', 'Views');
-      html += '</div>';
+    // === CHAPTER POPULARITY ===
+    if (s.chapters && Object.keys(s.chapters).length > 0) {
+      html += aSection('📚 Chapter Popularity', hBarChart(s.chapters, '#4A90D9'));
+    }
+
+    // === TOP QUESTIONS ===
+    if (s.questions && Object.keys(s.questions).length > 0) {
+      var topQ = {};
+      Object.keys(s.questions).sort(function(a,b){return s.questions[b]-s.questions[a];}).slice(0,15).forEach(function(k){ topQ[k] = s.questions[k]; });
+      html += aSection('🔥 Most Opened Questions', hBarChart(topQ, '#e74c3c'));
+    }
+
+    // === COUNTRIES ===
+    if (s.countries && Object.keys(s.countries).length > 0) {
+      html += aSection('🌍 Visitors by Country', hBarChart(s.countries, '#27ae60'));
+    }
+
+    // === DEVICES & BROWSERS (side by side) ===
+    html += '<div class="a-grid2">';
+    if (s.devices) {
+      html += '<div class="a-box"><h3 class="a-box__title">📱 Devices</h3>' + donutBars(s.devices, ['#4A90D9','#e67e22','#27ae60']) + '</div>';
+    }
+    if (s.browsers) {
+      html += '<div class="a-box"><h3 class="a-box__title">🌐 Browsers</h3>' + donutBars(s.browsers, ['#4A90D9','#e74c3c','#f39c12','#27ae60','#8e44ad']) + '</div>';
+    }
+    html += '</div>';
+
+    // === REFERRERS ===
+    if (s.referers && Object.keys(s.referers).length > 0) {
+      html += aSection('🔗 Traffic Sources', hBarChart(s.referers, '#8e44ad'));
     }
 
     body.innerHTML = html;
   }).catch(function(e) {
-    body.innerHTML = '<div class="empty"><div class="empty__icon">⚠️</div><div class="empty__title">Could not load analytics: '+e.message+'</div></div>';
+    body.innerHTML = '<div class="empty"><div class="empty__icon">⚠️</div><div class="empty__title">Could not load: '+e.message+'</div></div>';
   });
 }
 
-function statCard(label, value, color) {
-  var bg = color === 'green' ? '#e6f4ea' : '#f0f2f5';
-  var col = color === 'green' ? '#188038' : '#333';
-  return '<div style="background:'+bg+';border-radius:8px;padding:16px;text-align:center"><div style="font-size:28px;font-weight:800;color:'+col+'">'+value+'</div><div style="font-size:12px;color:#999;margin-top:4px">'+label+'</div></div>';
+// === Chart helpers ===
+function aCard(label, value, color) {
+  return '<div class="a-stat" style="border-top:3px solid '+color+'"><div class="a-stat__val" style="color:'+color+'">'+value+'</div><div class="a-stat__label">'+label+'</div></div>';
 }
 
-function rankTable(obj, col1, col2) {
-  var sorted = Object.keys(obj).sort(function(a,b){return obj[b]-obj[a];});
-  var html = '<table class="tbl"><thead><tr><th>'+col1+'</th><th style="width:100px">'+col2+'</th></tr></thead><tbody>';
-  sorted.forEach(function(k){ html += '<tr><td>'+esc(k)+'</td><td><strong>'+obj[k]+'</strong></td></tr>'; });
-  html += '</tbody></table>';
+function aSection(title, content) {
+  return '<div class="a-box"><h3 class="a-box__title">'+title+'</h3>'+content+'</div>';
+}
+
+// Vertical bar chart
+function barChart(data, color, sortByKey) {
+  var keys = Object.keys(data);
+  if (sortByKey) keys.sort();
+  var max = 0;
+  keys.forEach(function(k){ if(data[k]>max) max=data[k]; });
+  if (!max) return '<p style="color:#999">No data yet</p>';
+
+  var html = '<div class="bar-chart">';
+  keys.forEach(function(k) {
+    var val = data[k];
+    var pct = Math.round(val / max * 100);
+    html += '<div class="bar-col">';
+    html += '<div class="bar-val">'+val+'</div>';
+    html += '<div class="bar-fill" style="height:'+pct+'%;background:'+color+'"></div>';
+    html += '<div class="bar-label">'+esc(String(k).slice(-5))+'</div>';
+    html += '</div>';
+  });
+  html += '</div>';
+  return html;
+}
+
+// Horizontal bar chart
+function hBarChart(data, color) {
+  var keys = Object.keys(data).sort(function(a,b){return data[b]-data[a];});
+  var max = data[keys[0]] || 1;
+
+  var html = '<div class="hbar-chart">';
+  keys.forEach(function(k) {
+    var val = data[k];
+    var pct = Math.round(val / max * 100);
+    html += '<div class="hbar-row">';
+    html += '<div class="hbar-label" title="'+esc(k)+'">'+esc(String(k).slice(0,30))+'</div>';
+    html += '<div class="hbar-track"><div class="hbar-fill" style="width:'+pct+'%;background:'+color+'"></div></div>';
+    html += '<div class="hbar-val">'+val+'</div>';
+    html += '</div>';
+  });
+  html += '</div>';
+  return html;
+}
+
+// Donut-style percentage bars (for devices/browsers)
+function donutBars(data, colors) {
+  var keys = Object.keys(data).sort(function(a,b){return data[b]-data[a];});
+  var total = 0;
+  keys.forEach(function(k){ total += data[k]; });
+  if (!total) return '<p style="color:#999">No data</p>';
+
+  var html = '<div class="donut-bars">';
+  keys.forEach(function(k, i) {
+    var val = data[k];
+    var pct = Math.round(val / total * 100);
+    var col = colors[i % colors.length];
+    html += '<div class="donut-row">';
+    html += '<div class="donut-color" style="background:'+col+'"></div>';
+    html += '<div class="donut-label">'+esc(k)+'</div>';
+    html += '<div class="donut-track"><div class="donut-fill" style="width:'+pct+'%;background:'+col+'"></div></div>';
+    html += '<div class="donut-val">'+pct+'% <span style="color:#999">('+val+')</span></div>';
+    html += '</div>';
+  });
+  html += '</div>';
   return html;
 }
 
