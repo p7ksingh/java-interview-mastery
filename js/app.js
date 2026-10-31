@@ -1,9 +1,11 @@
 /* ==========================================================================
    Java Interview Mastery — app.js
    Vanilla JS single-page app. No frameworks. Static-site friendly.
+   Medium.com-style rendering. Data loading logic unchanged:
+   fetches data/chapters.json, data/search-index.json, data/chNN.json.
    Features: chapter lazy-loading, section tabs, fuzzy search w/ debounce,
    hash routing, syntax highlighting, copy-to-clipboard, keyboard nav,
-   localStorage progress, dark/light toggle, mobile drawer, back-to-top.
+   localStorage progress (mark as reviewed), mobile drawer, back-to-top.
    ========================================================================== */
 (function () {
   'use strict';
@@ -12,7 +14,6 @@
   var DATA_DIR = 'data/';
   var PAGE_SIZE = 25;                 // questions rendered per "page" (lazy render)
   var LS_REVIEWED = 'jim.reviewed';   // Set of reviewed question ids
-  var LS_THEME = 'jim.theme';
 
   var state = {
     chapters: [],          // from chapters.json
@@ -31,7 +32,6 @@
     sidebar: byId('sidebar'),
     backdrop: byId('sidebarBackdrop'),
     menuToggle: byId('menuToggle'),
-    themeToggle: byId('themeToggle'),
     scrollTop: byId('scrollTop')
   };
 
@@ -41,7 +41,6 @@
   document.addEventListener('DOMContentLoaded', init);
 
   function init() {
-    applyStoredTheme();
     wireGlobalEvents();
     loadChapters()
       .then(function () {
@@ -142,20 +141,20 @@
     var reviewedCount = state.reviewed.size;
     var pct = state.totalAnswers ? Math.round((reviewedCount / state.totalAnswers) * 100) : 0;
 
-    var cards = state.chapters.map(function (c) {
+    var rows = state.chapters.map(function (c) {
       var revInCh = countReviewedInChapter(c.chapter);
       var w = c.count ? Math.round((revInCh / c.count) * 100) : 0;
       return (
-        '<button class="chapter-card" data-chapter="' + c.chapter + '">' +
-          '<div class="chapter-card__top">' +
-            '<span class="chapter-card__num">CH ' + pad2(c.chapter) + '</span>' +
-            '<span class="badge">' + c.count + ' Q</span>' +
+        '<button class="chapter-row" data-chapter="' + c.chapter + '">' +
+          '<div class="chapter-row__meta">' +
+            '<span class="chapter-row__num">Chapter ' + pad2(c.chapter) + '</span>' +
+            '<span class="chapter-row__dot">·</span>' +
+            '<span>' + c.count + ' questions</span>' +
           '</div>' +
-          '<div class="chapter-card__title">' + escapeHtml(c.chapterTitle) + '</div>' +
-          '<div class="chapter-card__bar"><span style="width:' + w + '%"></span></div>' +
-          '<div class="chapter-card__meta">' +
-            '<span class="chapter-card__count">' + c.count + ' questions</span>' +
-            '<span class="chapter-card__count">' + revInCh + ' reviewed</span>' +
+          '<div class="chapter-row__title">' + escapeHtml(c.chapterTitle) + '</div>' +
+          '<div class="chapter-row__sub">' +
+            '<span class="chapter-row__bar"><span style="width:' + w + '%"></span></span>' +
+            '<span>' + revInCh + ' reviewed</span>' +
           '</div>' +
         '</button>'
       );
@@ -166,27 +165,30 @@
         '<h1>Java Interview <span class="accent">Mastery</span></h1>' +
         '<p>' + state.totalAnswers.toLocaleString() + ' real interview questions across ' +
           state.chapters.length + ' chapters — professional definitions, banking-domain ' +
-          'examples, runnable code &amp; HLD/LLD diagrams.</p>' +
+          'examples, runnable code and HLD/LLD diagrams.</p>' +
       '</section>' +
       '<div class="stats-row">' +
-        statBox(state.totalAnswers.toLocaleString(), 'Total questions') +
+        statBox(state.totalAnswers.toLocaleString(), 'Questions') +
         statBox(String(state.chapters.length), 'Chapters') +
-        statBox(reviewedCount + ' / ' + state.totalAnswers, 'Reviewed') +
+        statBox(reviewedCount.toLocaleString(), 'Reviewed') +
         statBox(pct + '%', 'Progress') +
       '</div>' +
-      '<div class="chapter-grid">' + cards + '</div>';
+      '<div class="chapter-list">' +
+        '<p class="section-label">All chapters</p>' +
+        rows +
+      '</div>';
 
     // animate progress bars
     requestAnimationFrame(function () {
-      var bars = el.content.querySelectorAll('.chapter-card__bar > span');
+      var bars = el.content.querySelectorAll('.chapter-row__bar > span');
       bars.forEach(function (b) { b.style.width = b.style.width; });
     });
 
-    bindDelegated(el.content, '.chapter-card', function (node) {
+    bindDelegated(el.content, '.chapter-row', function (node) {
       navigate('#/chapter/' + node.getAttribute('data-chapter'));
     });
 
-    document.title = 'Java Interview Mastery — 2,396 Questions with Industry Answers';
+    document.title = 'Java Interview Mastery — 2,506 Questions with Industry Answers';
     scrollToTop(true);
   }
 
@@ -216,19 +218,17 @@
     var shown = answers.slice(0, state.renderLimit);
     var html =
       '<div class="page-head">' +
-        '<div class="flex items-center gap-12">' +
-          '<span class="section__number">CH ' + pad2(meta.chapter) + '</span>' +
-          '<h1>' + escapeHtml(meta.chapterTitle) + '</h1>' +
-        '</div>' +
+        '<span class="eyebrow">Chapter ' + pad2(meta.chapter) + '</span>' +
+        '<h1>' + escapeHtml(meta.chapterTitle) + '</h1>' +
         '<p>' + answers.length + ' questions · ' +
           countReviewedInChapter(meta.chapter) + ' reviewed</p>' +
       '</div>';
 
-    html += shown.map(questionCardHtml).join('');
+    html += '<div class="qlist">' + shown.map(function (a) { return questionCardHtml(a); }).join('') + '</div>';
 
     if (answers.length > state.renderLimit) {
-      html += '<button class="load-more" id="loadMore">Load more (' +
-        (answers.length - state.renderLimit) + ' remaining)</button>';
+      html += '<div class="load-more-wrap"><button class="load-more" id="loadMore">Show more (' +
+        (answers.length - state.renderLimit) + ' remaining)</button></div>';
     }
 
     el.content.innerHTML = html;
@@ -268,18 +268,23 @@
     return (
       '<article class="qcard' + openClass + revClass + '" id="qcard-' + id + '" data-qid="' + id + '">' +
         '<div class="qcard__header" data-toggle>' +
-          '<span class="badge badge--highlight mono">' + escapeHtml(id) + '</span>' +
-          '<span class="qcard__q">' + escapeHtml(ans.question) + '</span>' +
-          '<span class="qcard__chevron" aria-hidden="true">▾</span>' +
+          '<span class="qcard__meta-id">' + escapeHtml(id) + '</span>' +
+          '<h2 class="qcard__q">' + escapeHtml(ans.question) + '</h2>' +
+          '<span class="qcard__chevron" aria-hidden="true">⌄</span>' +
         '</div>' +
-        '<div class="qcard__body"><div class="qcard__body-inner"><div class="qcard__content">' +
-          '<div class="flex items-center gap-8" style="justify-content:flex-end;margin-bottom:6px">' +
-            '<button class="reviewed-toggle' + (reviewed ? ' is-reviewed' : '') +
-              '" data-review="' + id + '">' + (reviewed ? '✓ Reviewed' : 'Mark reviewed') + '</button>' +
+        '<div class="qcard__body"><div class="qcard__body-inner">' +
+          '<div class="answer-toolbar">' +
+            '<button class="clap-btn' + (reviewed ? ' is-reviewed' : '') +
+              '" data-review="' + id + '">' +
+              '<span class="clap-icon">' + (reviewed ? '✓' : '👏') + '</span>' +
+              '<span class="clap-label">' + (reviewed ? 'Reviewed' : 'Mark as reviewed') + '</span>' +
+            '</button>' +
           '</div>' +
-          '<div class="tabs" role="tablist">' + tabBtns + '</div>' +
-          panels +
-        '</div></div></div>' +
+          '<div class="qcard__content">' +
+            '<div class="tabs" role="tablist">' + tabBtns + '</div>' +
+            panels +
+          '</div>' +
+        '</div></div>' +
       '</article>'
     );
   }
@@ -296,24 +301,24 @@
         s1html = renderMarkdown(s1);
       } else {
         if (s1.profdef)  s1html += subsection('Professional definition', renderMarkdown(s1.profdef));
-        if (s1.oneliner) s1html += callout('tip', '💡', renderInline(s1.oneliner));
+        if (s1.oneliner) s1html += callout('💡', renderInline(s1.oneliner));
         if (s1.analogy)  s1html += subsection('In simple words (banking analogy)', renderMarkdown(s1.analogy));
       }
-      tabs.push({ key: 's1', label: 'S1 · Definition', html: s1html });
+      tabs.push({ key: 's1', label: 'Definition', html: s1html });
     }
 
     if (sections.s2_technical)
-      tabs.push({ key: 's2', label: 'S2 · Technical', html: renderMarkdown(sections.s2_technical) });
+      tabs.push({ key: 's2', label: 'Technical', html: renderMarkdown(sections.s2_technical) });
 
     if (sections.s3_banking)
-      tabs.push({ key: 's3', label: 'S3 · Banking', html: renderMarkdown(sections.s3_banking) });
+      tabs.push({ key: 's3', label: 'Banking', html: renderMarkdown(sections.s3_banking) });
 
     // S4 — Code (structure + java + build)
     var s4 = '';
     if (sections.s4a_structure) s4 += subsection('Project structure', renderMarkdown(sections.s4a_structure));
     if (sections.s4d_java)      s4 += subsection('Java code', renderMarkdown(sections.s4d_java));
     if (sections.s4e_build)     s4 += subsection('Build &amp; run', renderMarkdown(sections.s4e_build));
-    if (s4) tabs.push({ key: 's4', label: 'S4 · Code', html: s4 });
+    if (s4) tabs.push({ key: 's4', label: 'Code', html: s4 });
 
     // S5 — Data Journey (journey + flow + hld + lld)
     var s5 = '';
@@ -321,10 +326,10 @@
     if (sections.s5b_flow)   s5 += subsection('Flow', renderMarkdown(sections.s5b_flow));
     if (sections.s5c_hld)    s5 += subsection('HLD — High-Level Design', renderDiagram(sections.s5c_hld, 'HLD'));
     if (sections.s5d_lld)    s5 += subsection('LLD — Low-Level Design', renderDiagram(sections.s5d_lld, 'LLD'));
-    if (s5) tabs.push({ key: 's5', label: 'S5 · Data Journey', html: s5 });
+    if (s5) tabs.push({ key: 's5', label: 'Data Journey', html: s5 });
 
     if (sections.s6_takeaway)
-      tabs.push({ key: 's6', label: 'S6 · Takeaway', html: renderMarkdown(sections.s6_takeaway) });
+      tabs.push({ key: 's6', label: 'Takeaway', html: renderMarkdown(sections.s6_takeaway) });
 
     if (!tabs.length) tabs.push({ key: 'na', label: 'Answer', html: '<p class="text-faint">No content.</p>' });
     return tabs;
@@ -333,8 +338,8 @@
   function subsection(title, html) {
     return '<div class="subsection"><h4 class="subsection__title">' + title + '</h4>' + html + '</div>';
   }
-  function callout(kind, icon, html) {
-    return '<div class="callout callout--' + kind + '"><span class="callout__icon">' + icon +
+  function callout(icon, html) {
+    return '<div class="callout"><span class="callout__icon">' + icon +
       '</span><div>' + html + '</div></div>';
   }
 
@@ -353,20 +358,22 @@
           'Try a different keyword or browse chapters from the sidebar.');
         return;
       }
-      var html = '<div class="page-head"><h1>Search results</h1>' +
+      var html = '<div class="page-head">' +
+        '<span class="eyebrow">Search</span>' +
+        '<h1>Results</h1>' +
         '<p class="result-count">' + results.length + ' match' + (results.length === 1 ? '' : 'es') +
         ' for “' + escapeHtml(query) + '”</p></div>';
 
       html += results.map(function (r) {
         return (
-          '<article class="qcard" data-open-q="' + r.id + '">' +
-            '<div class="qcard__header">' +
-              '<span class="badge badge--highlight mono">' + escapeHtml(r.id) + '</span>' +
-              '<span class="qcard__q">' + highlight(r.question, query) + '</span>' +
-              '<span class="qcard__chevron" aria-hidden="true">›</span>' +
+          '<article class="result-row" data-open-q="' + r.id + '">' +
+            '<div class="result-row__meta">' +
+              '<span class="result-row__chapter">CH ' + pad2(r.chapter) + ' · ' +
+                escapeHtml(r.chapterTitle || '') + '</span>' +
+              '<span class="chapter-row__dot">·</span>' +
+              '<span class="mono">' + escapeHtml(r.id) + '</span>' +
             '</div>' +
-            '<div class="search-result-chapter" style="padding:0 18px 14px 18px">CH ' +
-              pad2(r.chapter) + ' · ' + escapeHtml(r.chapterTitle || '') + '</div>' +
+            '<div class="result-row__q">' + highlight(r.question, query) + '</div>' +
           '</article>'
         );
       }).join('');
@@ -438,9 +445,8 @@
         setActiveNav('chapter', hit.chapter);
         document.title = ans.question.slice(0, 60) + ' — Java Interview Mastery';
 
-        var back = '<div class="page-head"><div class="nav-item" style="display:inline-flex" ' +
-          'data-route="#/chapter/' + hit.chapter + '"><span class="nav-item__text">← ' +
-          escapeHtml(hit.chapterTitle || ('Chapter ' + hit.chapter)) + '</span></div></div>';
+        var back = '<div class="back-link" data-route="#/chapter/' + hit.chapter + '">' +
+          '← ' + escapeHtml(hit.chapterTitle || ('Chapter ' + hit.chapter)) + '</div>';
 
         el.content.innerHTML = back + questionCardHtml(ans, { open: true });
         enhanceContent(el.content);
@@ -588,7 +594,7 @@
       // heading (#, ##, ###)
       var hm = line.match(/^(#{1,4})\s+(.*)$/);
       if (hm) {
-        var lvl = Math.min(hm[1].length + 2, 6);
+        var lvl = Math.min(hm[1].length + 1, 4);
         out.push('<h' + lvl + '>' + hm[2] + '</h' + lvl + '>');
         i++;
         continue;
@@ -632,7 +638,6 @@
     return (
       '<div class="code-block">' +
         '<div class="code-block__bar">' +
-          '<span class="code-block__dots"><span></span><span></span><span></span></span>' +
           '<span class="code-block__lang">' + escapeHtml(label) + '</span>' +
         '</div>' +
         '<pre><button class="code-copy" type="button">Copy</button><code>' +
@@ -651,7 +656,7 @@
   function diagramBlock(code) {
     return (
       '<div class="diagram">' +
-        '<div class="diagram__head"><span class="badge badge--highlight">DIAGRAM</span></div>' +
+        '<div class="diagram__head"><span class="diagram__label">Diagram</span></div>' +
         '<pre class="diagram__art">' + escapeHtml(code) + '</pre>' +
       '</div>'
     );
@@ -703,7 +708,7 @@
     esc = esc.replace(/\b\d[\d_.]*[fFdDlL]?\b/g, function (m) { return stash('tok-number', m); });
 
     // identifiers → keywords / types / function calls
-    esc = esc.replace(/\b[A-Za-z_]\w*\b(\s*\()?/g, function (m, paren, offset, full) {
+    esc = esc.replace(/\b[A-Za-z_]\w*\b(\s*\()?/g, function (m, paren) {
       var word = paren ? m.slice(0, m.length - paren.length).trim() : m;
       var tail = paren || '';
       if (KW_SET[word]) return stash('tok-keyword', word) + tail;
@@ -749,7 +754,7 @@
     if (/```/.test(text)) return renderMarkdown(text);
     return (
       '<div class="diagram">' +
-        '<div class="diagram__head"><span class="badge badge--highlight">' + (kind || 'DIAGRAM') +
+        '<div class="diagram__head"><span class="diagram__label">' + (kind || 'Diagram') +
           '</span></div>' +
         '<pre class="diagram__art">' + escapeHtml(String(text)) + '</pre>' +
       '</div>'
@@ -762,7 +767,7 @@
       return (
         '<div class="nav-item" data-route="#/chapter/' + c.chapter + '" data-chapter="' + c.chapter + '">' +
           '<span class="nav-item__text">' + pad2(c.chapter) + '. ' + escapeHtml(c.chapterTitle) + '</span>' +
-          '<span class="badge">' + c.count + '</span>' +
+          '<span class="count">' + c.count + '</span>' +
         '</div>'
       );
     }).join('');
@@ -804,7 +809,10 @@
     var on = state.reviewed.has(id);
     if (btn) {
       btn.classList.toggle('is-reviewed', on);
-      btn.textContent = on ? '✓ Reviewed' : 'Mark reviewed';
+      var icon = btn.querySelector('.clap-icon');
+      var label = btn.querySelector('.clap-label');
+      if (icon) icon.textContent = on ? '✓' : '👏';
+      if (label) label.textContent = on ? 'Reviewed' : 'Mark as reviewed';
       var card = btn.closest('.qcard');
       if (card) card.classList.toggle('is-reviewed', on);
     }
@@ -825,24 +833,6 @@
     var count = 0;
     data.answers.forEach(function (a) { if (state.reviewed.has(a.id)) count++; });
     return count;
-  }
-
-  /* ============================== Theme ================================ */
-  function applyStoredTheme() {
-    var t = 'dark';
-    try { t = localStorage.getItem(LS_THEME) || 'dark'; } catch (e) {}
-    document.documentElement.setAttribute('data-theme', t);
-    updateThemeButton(t);
-  }
-  function toggleTheme() {
-    var cur = document.documentElement.getAttribute('data-theme');
-    var next = cur === 'light' ? 'dark' : 'light';
-    document.documentElement.setAttribute('data-theme', next);
-    try { localStorage.setItem(LS_THEME, next); } catch (e) {}
-    updateThemeButton(next);
-  }
-  function updateThemeButton(t) {
-    if (el.themeToggle) el.themeToggle.textContent = t === 'light' ? '☀️' : '🌙';
   }
 
   /* ========================= Global events / UX ======================= */
@@ -869,9 +859,6 @@
         e.preventDefault(); el.searchInput.focus();
       }
     });
-
-    // theme
-    el.themeToggle.addEventListener('click', toggleTheme);
 
     // mobile drawer
     el.menuToggle.addEventListener('click', toggleDrawer);
