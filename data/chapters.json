@@ -1,0 +1,174 @@
+{
+ "totalAnswers": 2506,
+ "totalChapters": 28,
+ "chapters": [
+  {
+   "chapter": 1,
+   "chapterTitle": "Core Java",
+   "count": 155,
+   "file": "ch01.json"
+  },
+  {
+   "chapter": 2,
+   "chapterTitle": "OOP",
+   "count": 32,
+   "file": "ch02.json"
+  },
+  {
+   "chapter": 3,
+   "chapterTitle": "Collections",
+   "count": 67,
+   "file": "ch03.json"
+  },
+  {
+   "chapter": 4,
+   "chapterTitle": "Exception Handling",
+   "count": 28,
+   "file": "ch04.json"
+  },
+  {
+   "chapter": 5,
+   "chapterTitle": "Concurrency & Multithreading",
+   "count": 127,
+   "file": "ch05.json"
+  },
+  {
+   "chapter": 6,
+   "chapterTitle": "Java 8+ Functional",
+   "count": 139,
+   "file": "ch06.json"
+  },
+  {
+   "chapter": 7,
+   "chapterTitle": "Spring & Spring Boot",
+   "count": 26,
+   "file": "ch07.json"
+  },
+  {
+   "chapter": 8,
+   "chapterTitle": "Transactions",
+   "count": 32,
+   "file": "ch08.json"
+  },
+  {
+   "chapter": 9,
+   "chapterTitle": "JPA & Hibernate",
+   "count": 69,
+   "file": "ch09.json"
+  },
+  {
+   "chapter": 10,
+   "chapterTitle": "Microservices",
+   "count": 194,
+   "file": "ch10.json"
+  },
+  {
+   "chapter": 11,
+   "chapterTitle": "Kafka & Messaging",
+   "count": 91,
+   "file": "ch11.json"
+  },
+  {
+   "chapter": 12,
+   "chapterTitle": "DevOps, Build, Git & Tooling",
+   "count": 58,
+   "file": "ch12.json"
+  },
+  {
+   "chapter": 13,
+   "chapterTitle": "Database & SQL",
+   "count": 141,
+   "file": "ch13.json"
+  },
+  {
+   "chapter": 14,
+   "chapterTitle": "REST API & Web",
+   "count": 40,
+   "file": "ch14.json"
+  },
+  {
+   "chapter": 15,
+   "chapterTitle": "Design Patterns & Principles",
+   "count": 33,
+   "file": "ch15.json"
+  },
+  {
+   "chapter": 16,
+   "chapterTitle": "Advanced Java",
+   "count": 71,
+   "file": "ch16.json"
+  },
+  {
+   "chapter": 17,
+   "chapterTitle": "Coding Problems (DSA / Java)",
+   "count": 501,
+   "file": "ch17.json"
+  },
+  {
+   "chapter": 18,
+   "chapterTitle": "AWS & Cloud",
+   "count": 41,
+   "file": "ch18.json"
+  },
+  {
+   "chapter": 19,
+   "chapterTitle": "DevOps",
+   "count": 75,
+   "file": "ch19.json"
+  },
+  {
+   "chapter": 20,
+   "chapterTitle": "Data Engineering",
+   "count": 194,
+   "file": "ch20.json"
+  },
+  {
+   "chapter": 21,
+   "chapterTitle": "QA, Testing & SDET",
+   "count": 41,
+   "file": "ch21.json"
+  },
+  {
+   "chapter": 22,
+   "chapterTitle": "Java 8 Practical Coding",
+   "count": 204,
+   "file": "ch22.json"
+  },
+  {
+   "chapter": 23,
+   "chapterTitle": "Behavioral / HR (STAR Method)",
+   "count": 37,
+   "file": "ch23.json"
+  },
+  {
+   "chapter": 24,
+   "chapterTitle": "System Design",
+   "count": 35,
+   "file": "ch24.json"
+  },
+  {
+   "chapter": 25,
+   "chapterTitle": "Security",
+   "count": 24,
+   "file": "ch25.json"
+  },
+  {
+   "chapter": 26,
+   "chapterTitle": "JVM Internals",
+   "count": 20,
+   "file": "ch26.json"
+  },
+  {
+   "chapter": 27,
+   "chapterTitle": "Architecture & Patterns",
+   "count": 15,
+   "file": "ch27.json"
+  },
+  {
+   "chapter": 28,
+   "chapterTitle": "Miscellaneous / Advanced",
+   "count": 16,
+   "file": "ch28.json"
+  }
+ ]
+}

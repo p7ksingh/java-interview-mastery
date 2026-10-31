@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#1a1a2e" />
+  <meta name="color-scheme" content="dark light" />
+
+  <title>Java Interview Mastery — 2,396 Questions with Industry Answers</title>
+  <meta name="description" content="Master 2,396 real Java interview questions across 23 chapters — Core Java, Collections, Concurrency, Spring, Microservices, Kafka, System Design and more — each with professional definitions, banking-domain examples, runnable code and HLD/LLD diagrams." />
+  <meta name="keywords" content="Java interview questions, Spring Boot, Microservices, Concurrency, Collections, Kafka, System Design, JPA, Hibernate, DSA, banking domain" />
+  <meta name="author" content="Java Interview Mastery" />
+
+  <!-- Open Graph -->
+  <meta property="og:type" content="website" />
+  <meta property="og:title" content="Java Interview Mastery — 2,396 Questions with Industry Answers" />
+  <meta property="og:description" content="2,396 real Java interview questions with professional answers, banking-domain examples, runnable code and HLD/LLD diagrams." />
+  <meta property="og:site_name" content="Java Interview Mastery" />
+  <meta property="og:image" content="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='1200' height='630'%3E%3Crect width='1200' height='630' fill='%231a1a2e'/%3E%3Ctext x='60' y='300' font-family='sans-serif' font-size='72' font-weight='700' fill='%23e94560'%3EJava Interview%3C/text%3E%3Ctext x='60' y='390' font-family='sans-serif' font-size='72' font-weight='700' fill='%23e6e8f0'%3EMastery%3C/text%3E%3Ctext x='60' y='470' font-family='sans-serif' font-size='34' fill='%23a0a6c0'%3E2,396 Questions · 23 Chapters%3C/text%3E%3C/svg%3E" />
+
+  <!-- Twitter -->
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Java Interview Mastery — 2,396 Questions with Industry Answers" />
+  <meta name="twitter:description" content="2,396 real Java interview questions with professional answers, banking-domain examples and runnable code." />
+
+  <!-- Favicon (inline SVG — no external file needed) -->
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23e94560'/%3E%3Ctext x='16' y='23' font-family='monospace' font-size='18' font-weight='700' text-anchor='middle' fill='white'%3EJ%3C/text%3E%3C/svg%3E" />
+  <link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23e94560'/%3E%3Ctext x='16' y='23' font-family='monospace' font-size='18' font-weight='700' text-anchor='middle' fill='white'%3EJ%3C/text%3E%3C/svg%3E" />
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
+
+  <!-- Stylesheet -->
+  <link rel="stylesheet" href="css/style.css" />
+
+  <!-- Section tabs + light-theme overrides (kept here so only the two requested JS/HTML files change behaviour) -->
+  <style>
+    /* ---- Section tabs within a question ---- */
+    .tabs {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin: 6px 0 20px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--border);
+    }
+    .tab {
+      font-family: var(--font-mono);
+      font-size: .78rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      background: var(--accent);
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      padding: 6px 13px;
+      cursor: pointer;
+      transition: background var(--t-fast), color var(--t-fast), border-color var(--t-fast);
+      white-space: nowrap;
+    }
+    .tab:hover { background: var(--accent-hover); color: #fff; }
+    .tab.is-active { background: var(--highlight); color: #fff; border-color: var(--highlight); }
+    .tab-panel { display: none; animation: fade .2s ease; }
+    .tab-panel.is-active { display: block; }
+    @keyframes fade { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+
+    /* ---- Home hero + chapter cards ---- */
+    .hero {
+      text-align: center;
+      padding: 28px 0 10px;
+      margin-bottom: 10px;
+    }
+    .hero h1 { font-size: 2.2rem; }
+    .hero h1 .accent { color: var(--highlight); }
+    .hero p { color: var(--text-muted); margin-top: 10px; font-size: 1.02rem; }
+
+    .stats-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 14px;
+      justify-content: center;
+      margin: 22px 0 34px;
+    }
+    .stat {
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px 24px;
+      min-width: 140px;
+      text-align: center;
+    }
+    .stat__num { font-size: 1.7rem; font-weight: 800; color: var(--highlight); font-family: var(--font-mono); }
+    .stat__label { font-size: .78rem; color: var(--text-faint); text-transform: uppercase; letter-spacing: .06em; margin-top: 4px; }
+
+    .chapter-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+      gap: 16px;
+      margin-top: 8px;
+    }
+    .chapter-card {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 18px;
+      cursor: pointer;
+      text-align: left;
+      color: inherit;
+      transition: border-color var(--t), box-shadow var(--t), transform var(--t);
+    }
+    .chapter-card:hover {
+      border-color: var(--highlight);
+      box-shadow: var(--shadow-md);
+      transform: translateY(-2px);
+    }
+    .chapter-card__top { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+    .chapter-card__num {
+      font-family: var(--font-mono);
+      font-weight: 700;
+      color: #fff;
+      background: linear-gradient(135deg, var(--accent), var(--accent-hover));
+      border-radius: var(--radius-sm);
+      padding: 4px 10px;
+      font-size: .8rem;
+    }
+    .chapter-card__title { font-size: 1.05rem; font-weight: 700; color: #f3f5ff; }
+    .chapter-card__meta { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: auto; }
+    .chapter-card__count { font-size: .82rem; color: var(--text-muted); }
+    .chapter-card__bar { height: 5px; border-radius: 999px; background: var(--accent); overflow: hidden; }
+    .chapter-card__bar > span { display: block; height: 100%; background: var(--highlight); border-radius: 999px; width: 0; transition: width var(--t-slow); }
+
+    /* reviewed marker */
+    .reviewed-toggle {
+      font-family: var(--font-mono);
+      font-size: .72rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      background: var(--accent);
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      padding: 5px 11px;
+      cursor: pointer;
+      transition: background var(--t-fast), color var(--t-fast), border-color var(--t-fast);
+    }
+    .reviewed-toggle:hover { background: var(--accent-hover); color: #fff; }
+    .reviewed-toggle.is-reviewed { background: rgba(126,231,135,.16); color: var(--code-green); border-color: rgba(126,231,135,.4); }
+    .qcard.is-reviewed { border-left: 3px solid var(--code-green); }
+
+    .search-result-chapter { font-size: .76rem; color: var(--text-faint); font-family: var(--font-mono); margin-top: 2px; }
+    .result-count { color: var(--text-muted); font-size: .9rem; margin: 4px 0 18px; }
+
+    /* theme toggle button */
+    .icon-btn {
+      width: 42px; height: 42px; flex: none;
+      border: 1px solid var(--border);
+      background: var(--bg-elevated);
+      border-radius: var(--radius-sm);
+      color: var(--text);
+      cursor: pointer;
+      font-size: 1.1rem;
+      line-height: 1;
+      display: grid; place-items: center;
+      transition: background var(--t-fast), border-color var(--t-fast);
+    }
+    .icon-btn:hover { background: var(--accent); border-color: var(--accent-hover); }
+
+    .load-more {
+      display: block;
+      margin: 24px auto 0;
+      font-family: var(--font-mono);
+      font-size: .85rem;
+      color: #fff;
+      background: var(--accent);
+      border: 1px solid var(--accent-hover);
+      border-radius: 999px;
+      padding: 10px 22px;
+      cursor: pointer;
+      transition: background var(--t-fast);
+    }
+    .load-more:hover { background: var(--accent-hover); }
+
+    /* ---- Light theme overrides ---- */
+    [data-theme="light"] {
+      --bg:            #f5f6fb;
+      --bg-elevated:   #ffffff;
+      --sidebar:       #ffffff;
+      --accent:        #e6eaf5;
+      --accent-hover:  #d2dcf0;
+      --highlight:     #d6294b;
+      --highlight-dim: #b51f3d;
+      --code-bg:       #f6f8fa;
+      --code-border:   #d7dce5;
+      --code-green:    #1a7f37;
+      --code-yellow:   #9a6700;
+      --code-blue:     #0550ae;
+      --code-pink:     #cf222e;
+      --code-comment:  #6e7781;
+      --text:          #1c1e2b;
+      --text-muted:    #4a4f66;
+      --text-faint:    #767c94;
+      --border:        #d7dce5;
+      --border-soft:   #e5e9f0;
+    }
+    [data-theme="light"] body {
+      background-image:
+        radial-gradient(1200px 600px at 80% -10%, rgba(15,52,96,.07), transparent 60%),
+        radial-gradient(900px 500px at -10% 10%, rgba(233,69,96,.05), transparent 55%);
+    }
+    [data-theme="light"] h1,[data-theme="light"] h2,[data-theme="light"] h3,
+    [data-theme="light"] h4,[data-theme="light"] .section__title,
+    [data-theme="light"] .qcard__q,[data-theme="light"] .chapter-card__title { color: #10121c; }
+    [data-theme="light"] .tab.is-active,
+    [data-theme="light"] .chapter-card__num,
+    [data-theme="light"] .section__number { color: #fff; }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <!-- ===================== Sidebar ===================== -->
+    <aside class="sidebar" id="sidebar" aria-label="Chapter navigation">
+      <div class="sidebar__brand">
+        <div class="sidebar__logo">JIM</div>
+        <div>
+          <span class="sidebar__brand-text">Java Interview Mastery</span>
+          <span class="sidebar__brand-sub">2,396 questions · 23 chapters</span>
+        </div>
+      </div>
+
+      <div class="nav-group">
+        <div class="nav-group__label">Navigate</div>
+        <div class="nav-item" data-route="#/home">
+          <span class="nav-item__text">🏠 Home</span>
+        </div>
+      </div>
+
+      <div class="nav-group">
+        <div class="nav-group__label">Chapters</div>
+        <nav id="chapterNav" aria-label="Chapters">
+          <!-- chapter nav items injected by app.js -->
+          <div class="nav-item"><span class="nav-item__text text-faint">Loading…</span></div>
+        </nav>
+      </div>
+    </aside>
+
+    <!-- backdrop for mobile drawer -->
+    <div class="sidebar-backdrop" id="sidebarBackdrop" hidden></div>
+
+    <!-- ===================== Top bar ===================== -->
+    <header class="topbar">
+      <button class="menu-toggle" id="menuToggle" aria-label="Toggle navigation" aria-expanded="false">☰</button>
+      <div class="topbar__title">Java Interview <span class="accent">Mastery</span></div>
+
+      <div class="search" role="search">
+        <span class="search__icon" aria-hidden="true">🔍</span>
+        <input
+          type="search"
+          class="search__input"
+          id="searchInput"
+          placeholder="Search 2,396 questions…"
+          aria-label="Search questions"
+          autocomplete="off"
+          spellcheck="false" />
+        <kbd class="search__kbd">Ctrl K</kbd>
+      </div>
+
+      <button class="icon-btn" id="themeToggle" aria-label="Toggle light / dark theme" title="Toggle theme">🌙</button>
+    </header>
+
+    <!-- ===================== Main ===================== -->
+    <main class="main">
+      <div class="content" id="content" aria-live="polite">
+        <div class="loading">
+          <div class="spinner" role="status" aria-label="Loading"></div>
+          <span>Loading content…</span>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- back to top -->
+  <button class="scroll-top" id="scrollTop" aria-label="Back to top" title="Back to top">↑</button>
+
+  <script src="js/app.js"></script>
+</body>
+</html>
