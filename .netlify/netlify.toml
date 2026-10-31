@@ -1,14 +1,13 @@
+functionsDirectory = "/Users/PASINGH2501/java-interview-website/netlify/functions"
+functionsDirectoryOrigin = "config-v1"
 plugins = []
 headers = []
 redirects = []
 
-[functions]
-
-[functions."*"]
-
 [build]
 publish = "/Users/PASINGH2501/java-interview-website"
-publishOrigin = "default"
+publishOrigin = "config"
+functions = "/Users/PASINGH2501/java-interview-website/netlify/functions"
 
 [build.environment]
 
@@ -23,3 +22,8 @@ publishOrigin = "default"
 [build.processing.js]
 
 [build.services]
+
+[functions]
+
+[functions."*"]
+node_bundler = "esbuild"
