@@ -1,951 +1,331 @@
-/* ==========================================================================
-   Java Interview Mastery — app.js
-   Vanilla JS single-page app. No frameworks. Static-site friendly.
-   Medium.com-style rendering. Data loading logic unchanged:
-   fetches data/chapters.json, data/search-index.json, data/chNN.json.
-   Features: chapter lazy-loading, section tabs, fuzzy search w/ debounce,
-   hash routing, syntax highlighting, copy-to-clipboard, keyboard nav,
-   localStorage progress (mark as reviewed), mobile drawer, back-to-top.
-   ========================================================================== */
-(function () {
-  'use strict';
-
-  /* ----------------------------- Config / State ------------------------- */
-  var DATA_DIR = 'data/';
-  var PAGE_SIZE = 25;                 // questions rendered per "page" (lazy render)
-  var LS_REVIEWED = 'jim.reviewed';   // Set of reviewed question ids
-
-  var state = {
-    chapters: [],          // from chapters.json
-    totalAnswers: 0,
-    searchIndex: null,     // lazily loaded array
-    chapterCache: {},      // { "1": {answers:[...]} }
-    reviewed: loadReviewed(),
-    renderLimit: PAGE_SIZE // current number of questions shown in chapter view
-  };
-
-  /* ----------------------------- DOM refs ------------------------------- */
-  var el = {
-    content: byId('content'),
-    chapterNav: byId('chapterNav'),
-    searchInput: byId('searchInput'),
-    sidebar: byId('sidebar'),
-    backdrop: byId('sidebarBackdrop'),
-    menuToggle: byId('menuToggle'),
-    scrollTop: byId('scrollTop')
-  };
-
-  function byId(id) { return document.getElementById(id); }
-
-  /* ============================== Bootstrap ============================= */
-  document.addEventListener('DOMContentLoaded', init);
-
-  function init() {
-    wireGlobalEvents();
-    loadChapters()
-      .then(function () {
-        renderChapterNav();
-        route();                 // render based on current hash
-      })
-      .catch(function (err) {
-        renderError('Failed to load chapters.json', err);
-      });
-  }
-
-  /* ============================ Data loading =========================== */
-  function loadChapters() {
-    return fetchJSON(DATA_DIR + 'chapters.json').then(function (data) {
-      state.chapters = data.chapters || [];
-      state.totalAnswers = data.totalAnswers || 0;
-    });
-  }
-
-  // Lazy-loaded search index (only fetched on first search)
-  function loadSearchIndex() {
-    if (state.searchIndex) return Promise.resolve(state.searchIndex);
-    return fetchJSON(DATA_DIR + 'search-index.json').then(function (data) {
-      state.searchIndex = Array.isArray(data) ? data : (data.index || []);
-      return state.searchIndex;
-    });
-  }
-
-  // Lazy-loaded chapter data with in-memory cache
-  function loadChapter(chapterNum) {
-    var key = String(chapterNum);
-    if (state.chapterCache[key]) return Promise.resolve(state.chapterCache[key]);
-    var meta = findChapter(chapterNum);
-    if (!meta) return Promise.reject(new Error('Unknown chapter ' + chapterNum));
-    var file = meta.file || ('ch' + pad2(chapterNum) + '.json');
-    return fetchJSON(DATA_DIR + file).then(function (data) {
-      state.chapterCache[key] = data;
-      return data;
-    });
-  }
-
-  function fetchJSON(url) {
-    return fetch(url, { cache: 'force-cache' }).then(function (res) {
-      if (!res.ok) throw new Error('HTTP ' + res.status + ' for ' + url);
-      return res.json();
-    });
-  }
-
-  function findChapter(num) {
-    num = Number(num);
-    for (var i = 0; i < state.chapters.length; i++) {
-      if (Number(state.chapters[i].chapter) === num) return state.chapters[i];
-    }
-    return null;
-  }
-
-  /* ============================== Routing ============================== */
-  // Routes:  #/home   #/chapter/1   #/search/<query>   #/q/177
-  window.addEventListener('hashchange', route);
-
-  function route() {
-    var hash = location.hash.replace(/^#\/?/, '');  // strip "#" or "#/"
-    var parts = hash.split('/').filter(Boolean);
-
-    closeDrawer();
-
-    if (!parts.length || parts[0] === 'home') {
-      setActiveNav('home');
-      renderHome();
-      return;
-    }
-    if (parts[0] === 'chapter') {
-      state.renderLimit = PAGE_SIZE;
-      renderChapter(Number(parts[1]));
-      return;
-    }
-    if (parts[0] === 'search') {
-      var q = decodeURIComponent(parts.slice(1).join('/'));
-      if (el.searchInput.value !== q) el.searchInput.value = q;
-      renderSearch(q);
-      return;
-    }
-    if (parts[0] === 'q') {
-      openQuestionById(parts[1]);
-      return;
-    }
-    // unknown → home
-    renderHome();
-  }
-
-  function navigate(hash) {
-    if (location.hash === hash) route();  // force re-render on same hash
-    else location.hash = hash;
-  }
-
-  /* ============================= Home view ============================= */
-  function renderHome() {
-    var reviewedCount = state.reviewed.size;
-    var pct = state.totalAnswers ? Math.round((reviewedCount / state.totalAnswers) * 100) : 0;
-
-    var rows = state.chapters.map(function (c) {
-      var revInCh = countReviewedInChapter(c.chapter);
-      var w = c.count ? Math.round((revInCh / c.count) * 100) : 0;
-      return (
-        '<button class="chapter-row" data-chapter="' + c.chapter + '">' +
-          '<div class="chapter-row__meta">' +
-            '<span class="chapter-row__num">Chapter ' + pad2(c.chapter) + '</span>' +
-            '<span class="chapter-row__dot">·</span>' +
-            '<span>' + c.count + ' questions</span>' +
-          '</div>' +
-          '<div class="chapter-row__title">' + escapeHtml(c.chapterTitle) + '</div>' +
-          '<div class="chapter-row__sub">' +
-            '<span class="chapter-row__bar"><span style="width:' + w + '%"></span></span>' +
-            '<span>' + revInCh + ' reviewed</span>' +
-          '</div>' +
-        '</button>'
-      );
-    }).join('');
-
-    el.content.innerHTML =
-      '<section class="hero">' +
-        '<h1>Java Interview <span class="accent">Mastery</span></h1>' +
-        '<p>' + state.totalAnswers.toLocaleString() + ' real interview questions across ' +
-          state.chapters.length + ' chapters — professional definitions, banking-domain ' +
-          'examples, runnable code and HLD/LLD diagrams.</p>' +
-      '</section>' +
-      '<div class="stats-row">' +
-        statBox(state.totalAnswers.toLocaleString(), 'Questions') +
-        statBox(String(state.chapters.length), 'Chapters') +
-        statBox(reviewedCount.toLocaleString(), 'Reviewed') +
-        statBox(pct + '%', 'Progress') +
-      '</div>' +
-      '<div class="chapter-list">' +
-        '<p class="section-label">All chapters</p>' +
-        rows +
-      '</div>';
-
-    // animate progress bars
-    requestAnimationFrame(function () {
-      var bars = el.content.querySelectorAll('.chapter-row__bar > span');
-      bars.forEach(function (b) { b.style.width = b.style.width; });
-    });
-
-    bindDelegated(el.content, '.chapter-row', function (node) {
-      navigate('#/chapter/' + node.getAttribute('data-chapter'));
-    });
-
-    document.title = 'Java Interview Mastery — 2,506 Questions with Industry Answers';
-    scrollToTop(true);
-  }
-
-  function statBox(num, label) {
-    return '<div class="stat"><div class="stat__num">' + num +
-           '</div><div class="stat__label">' + label + '</div></div>';
-  }
-
-  /* ============================ Chapter view =========================== */
-  function renderChapter(chapterNum) {
-    var meta = findChapter(chapterNum);
-    if (!meta) { renderError('Chapter ' + chapterNum + ' not found.'); return; }
-
-    setActiveNav('chapter', chapterNum);
-    document.title = meta.chapterTitle + ' — Java Interview Mastery';
-    showLoading('Loading Chapter ' + chapterNum + ' — ' + meta.chapterTitle + '…');
-
-    loadChapter(chapterNum).then(function (data) {
-      var answers = data.answers || [];
-      renderChapterAnswers(meta, answers);
-    }).catch(function (err) {
-      renderError('Could not load chapter ' + chapterNum, err);
-    });
-  }
-
-  function renderChapterAnswers(meta, answers) {
-    var shown = answers.slice(0, state.renderLimit);
-    var html =
-      '<div class="page-head">' +
-        '<span class="eyebrow">Chapter ' + pad2(meta.chapter) + '</span>' +
-        '<h1>' + escapeHtml(meta.chapterTitle) + '</h1>' +
-        '<p>' + answers.length + ' questions · ' +
-          countReviewedInChapter(meta.chapter) + ' reviewed</p>' +
-      '</div>';
-
-    html += '<div class="qlist">' + shown.map(function (a) { return questionCardHtml(a); }).join('') + '</div>';
-
-    if (answers.length > state.renderLimit) {
-      html += '<div class="load-more-wrap"><button class="load-more" id="loadMore">Show more (' +
-        (answers.length - state.renderLimit) + ' remaining)</button></div>';
-    }
-
-    el.content.innerHTML = html;
-    enhanceContent(el.content);
-
-    var lm = byId('loadMore');
-    if (lm) {
-      lm.addEventListener('click', function () {
-        state.renderLimit += PAGE_SIZE;
-        renderChapterAnswers(meta, answers);
-      });
-    }
-    scrollToTop(true);
-  }
-
-  /* ========================= Question card HTML ======================== */
-  function questionCardHtml(ans, opts) {
-    opts = opts || {};
-    var id = ans.id;
-    var reviewed = state.reviewed.has(id);
-    var sections = ans.sections || {};
-    var tabs = buildTabs(sections);
-
-    var tabBtns = tabs.map(function (t, i) {
-      return '<button class="tab' + (i === 0 ? ' is-active' : '') +
-        '" data-tab="' + t.key + '">' + t.label + '</button>';
-    }).join('');
-
-    var panels = tabs.map(function (t, i) {
-      return '<div class="tab-panel' + (i === 0 ? ' is-active' : '') +
-        '" data-panel="' + t.key + '">' + t.html + '</div>';
-    }).join('');
-
-    var openClass = opts.open ? ' is-open' : '';
-    var revClass = reviewed ? ' is-reviewed' : '';
-
-    return (
-      '<article class="qcard' + openClass + revClass + '" id="qcard-' + id + '" data-qid="' + id + '">' +
-        '<div class="qcard__header" data-toggle>' +
-          '<span class="qcard__meta-id">' + escapeHtml(id) + '</span>' +
-          '<h2 class="qcard__q">' + escapeHtml(ans.question) + '</h2>' +
-          '<span class="qcard__chevron" aria-hidden="true">⌄</span>' +
-        '</div>' +
-        '<div class="qcard__body"><div class="qcard__body-inner">' +
-          '<div class="answer-toolbar">' +
-            '<button class="clap-btn' + (reviewed ? ' is-reviewed' : '') +
-              '" data-review="' + id + '">' +
-              '<span class="clap-icon">' + (reviewed ? '✓' : '👏') + '</span>' +
-              '<span class="clap-label">' + (reviewed ? 'Reviewed' : 'Mark as reviewed') + '</span>' +
-            '</button>' +
-          '</div>' +
-          '<div class="qcard__content">' +
-            '<div class="tabs" role="tablist">' + tabBtns + '</div>' +
-            panels +
-          '</div>' +
-        '</div></div>' +
-      '</article>'
-    );
-  }
-
-  // Map raw section fields → 6 logical tabs (S1..S6)
-  function buildTabs(sections) {
-    var tabs = [];
-
-    // S1 — Definition (object with profdef / oneliner / analogy)
-    var s1 = sections.s1_definition;
-    if (s1) {
-      var s1html = '';
-      if (typeof s1 === 'string') {
-        s1html = renderMarkdown(s1);
-      } else {
-        if (s1.profdef)  s1html += subsection('Professional definition', renderMarkdown(s1.profdef));
-        if (s1.oneliner) s1html += callout('💡', renderInline(s1.oneliner));
-        if (s1.analogy)  s1html += subsection('In simple words (banking analogy)', renderMarkdown(s1.analogy));
-      }
-      tabs.push({ key: 's1', label: 'Definition', html: s1html });
-    }
-
-    if (sections.s2_technical)
-      tabs.push({ key: 's2', label: 'Technical', html: renderMarkdown(sections.s2_technical) });
-
-    if (sections.s3_banking)
-      tabs.push({ key: 's3', label: 'Banking', html: renderMarkdown(sections.s3_banking) });
-
-    // S4 — Code (structure + java + build)
-    var s4 = '';
-    if (sections.s4a_structure) s4 += subsection('Project structure', renderMarkdown(sections.s4a_structure));
-    if (sections.s4d_java)      s4 += subsection('Java code', renderMarkdown(sections.s4d_java));
-    if (sections.s4e_build)     s4 += subsection('Build &amp; run', renderMarkdown(sections.s4e_build));
-    if (s4) tabs.push({ key: 's4', label: 'Code', html: s4 });
-
-    // S5 — Data Journey (journey + flow + hld + lld)
-    var s5 = '';
-    if (sections.s5_journey) s5 += subsection('Data journey', renderMarkdown(sections.s5_journey));
-    if (sections.s5b_flow)   s5 += subsection('Flow', renderMarkdown(sections.s5b_flow));
-    if (sections.s5c_hld)    s5 += subsection('HLD — High-Level Design', renderDiagram(sections.s5c_hld, 'HLD'));
-    if (sections.s5d_lld)    s5 += subsection('LLD — Low-Level Design', renderDiagram(sections.s5d_lld, 'LLD'));
-    if (s5) tabs.push({ key: 's5', label: 'Data Journey', html: s5 });
-
-    if (sections.s6_takeaway)
-      tabs.push({ key: 's6', label: 'Takeaway', html: renderMarkdown(sections.s6_takeaway) });
-
-    if (!tabs.length) tabs.push({ key: 'na', label: 'Answer', html: '<p class="text-faint">No content.</p>' });
-    return tabs;
-  }
-
-  function subsection(title, html) {
-    return '<div class="subsection"><h4 class="subsection__title">' + title + '</h4>' + html + '</div>';
-  }
-  function callout(icon, html) {
-    return '<div class="callout"><span class="callout__icon">' + icon +
-      '</span><div>' + html + '</div></div>';
-  }
-
-  /* ============================= Search view =========================== */
-  function renderSearch(query) {
-    setActiveNav(null);
-    document.title = 'Search: ' + query + ' — Java Interview Mastery';
-
-    if (!query || !query.trim()) { renderHome(); return; }
-    showLoading('Searching…');
-
-    loadSearchIndex().then(function (index) {
-      var results = fuzzySearch(query, index).slice(0, 100);
-      if (!results.length) {
-        el.content.innerHTML = emptyState('🔍', 'No results for “' + escapeHtml(query) + '”',
-          'Try a different keyword or browse chapters from the sidebar.');
-        return;
-      }
-      var html = '<div class="page-head">' +
-        '<span class="eyebrow">Search</span>' +
-        '<h1>Results</h1>' +
-        '<p class="result-count">' + results.length + ' match' + (results.length === 1 ? '' : 'es') +
-        ' for “' + escapeHtml(query) + '”</p></div>';
-
-      html += results.map(function (r) {
-        return (
-          '<article class="result-row" data-open-q="' + r.id + '">' +
-            '<div class="result-row__meta">' +
-              '<span class="result-row__chapter">CH ' + pad2(r.chapter) + ' · ' +
-                escapeHtml(r.chapterTitle || '') + '</span>' +
-              '<span class="chapter-row__dot">·</span>' +
-              '<span class="mono">' + escapeHtml(r.id) + '</span>' +
-            '</div>' +
-            '<div class="result-row__q">' + highlight(r.question, query) + '</div>' +
-          '</article>'
-        );
-      }).join('');
-
-      el.content.innerHTML = html;
-      bindDelegated(el.content, '[data-open-q]', function (node) {
-        navigate('#/q/' + node.getAttribute('data-open-q'));
-      });
-      scrollToTop(true);
-    }).catch(function (err) {
-      renderError('Search failed', err);
-    });
-  }
-
-  // Lightweight fuzzy/relevance scoring (subsequence + token match)
-  function fuzzySearch(query, index) {
-    var q = query.toLowerCase().trim();
-    var tokens = q.split(/\s+/).filter(Boolean);
-    var scored = [];
-    for (var i = 0; i < index.length; i++) {
-      var item = index[i];
-      var hay = (item.question + ' ' + (item.chapterTitle || '') + ' ' + item.id).toLowerCase();
-      var score = scoreMatch(hay, q, tokens);
-      if (score > 0) scored.push({ item: item, score: score });
-    }
-    scored.sort(function (a, b) { return b.score - a.score; });
-    return scored.map(function (s) { return s.item; });
-  }
-
-  function scoreMatch(hay, q, tokens) {
-    var score = 0;
-    // exact phrase
-    var idx = hay.indexOf(q);
-    if (idx !== -1) score += 120 - Math.min(idx, 60);
-    // all tokens present
-    var allTokens = true;
-    for (var i = 0; i < tokens.length; i++) {
-      if (hay.indexOf(tokens[i]) !== -1) score += 20;
-      else allTokens = false;
-    }
-    if (allTokens && tokens.length > 1) score += 25;
-    // subsequence (fuzzy) bonus on the phrase
-    if (score === 0 && isSubsequence(q.replace(/\s+/g, ''), hay)) score += 8;
-    return score;
-  }
-
-  function isSubsequence(needle, hay) {
-    var j = 0;
-    for (var i = 0; i < hay.length && j < needle.length; i++) {
-      if (hay[i] === needle[j]) j++;
-    }
-    return j === needle.length;
-  }
-
-  /* ==================== Open single question by id ===================== */
-  function openQuestionById(id) {
-    if (!id) { renderHome(); return; }
-    // need to know which chapter this id lives in → use search index
-    showLoading('Loading question ' + id + '…');
-    loadSearchIndex().then(function (index) {
-      var hit = null;
-      for (var i = 0; i < index.length; i++) {
-        if (index[i].id === id) { hit = index[i]; break; }
-      }
-      if (!hit) { renderError('Question ' + id + ' not found.'); return; }
-      return loadChapter(hit.chapter).then(function (data) {
-        var ans = (data.answers || []).filter(function (a) { return a.id === id; })[0];
-        if (!ans) { renderError('Question ' + id + ' not found in chapter.'); return; }
-        setActiveNav('chapter', hit.chapter);
-        document.title = ans.question.slice(0, 60) + ' — Java Interview Mastery';
-
-        var back = '<div class="back-link" data-route="#/chapter/' + hit.chapter + '">' +
-          '← ' + escapeHtml(hit.chapterTitle || ('Chapter ' + hit.chapter)) + '</div>';
-
-        el.content.innerHTML = back + questionCardHtml(ans, { open: true });
-        enhanceContent(el.content);
-
-        bindDelegated(el.content, '[data-route]', function (node) {
-          navigate(node.getAttribute('data-route'));
-        });
-        // smooth scroll to the card
-        var card = byId('qcard-' + id);
-        if (card) card.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      });
-    }).catch(function (err) {
-      renderError('Could not open question ' + id, err);
-    });
-  }
-
-  /* ===================== Content enhancement / events ================== */
-  // Wire up toggles, tabs, review buttons, highlight + copy inside a container
-  function enhanceContent(container) {
-    // expand / collapse
-    bindDelegated(container, '[data-toggle]', function (node) {
-      var card = node.closest('.qcard');
-      if (card) card.classList.toggle('is-open');
-    });
-
-    // section tabs
-    container.addEventListener('click', function (e) {
-      var tab = e.target.closest('.tab');
-      if (!tab) return;
-      var wrap = tab.closest('.qcard__content');
-      if (!wrap) return;
-      var key = tab.getAttribute('data-tab');
-      wrap.querySelectorAll('.tab').forEach(function (t) {
-        t.classList.toggle('is-active', t === tab);
-      });
-      wrap.querySelectorAll('.tab-panel').forEach(function (p) {
-        p.classList.toggle('is-active', p.getAttribute('data-panel') === key);
-      });
-    });
-
-    // reviewed toggle
-    bindDelegated(container, '[data-review]', function (node) {
-      var qid = node.getAttribute('data-review');
-      toggleReviewed(qid, node);
-    });
-
-    // copy buttons
-    bindDelegated(container, '.code-copy', function (node) {
-      copyCode(node);
-    });
-  }
-
-  /* ========================= Markdown rendering ======================== */
-  // Renders a subset of markdown: fenced code blocks, inline code, bold,
-  // lists, tables, paragraphs. Fenced blocks get syntax highlight + copy btn.
-  function renderMarkdown(md) {
-    if (md == null) return '';
-    md = String(md);
-
-    // 1. Extract fenced code blocks first (protect from other transforms)
-    var blocks = [];
-    md = md.replace(/```([a-zA-Z0-9+#-]*)\n([\s\S]*?)```/g, function (_, lang, code) {
-      var token = '\u0000CB' + blocks.length + '\u0000';
-      blocks.push({ lang: (lang || '').toLowerCase(), code: code.replace(/\n$/, '') });
-      return token;
-    });
-
-    // 2. Escape remaining HTML
-    md = escapeHtml(md);
-
-    // 3. Inline formatting
-    md = inlineFormat(md);
-
-    // 4. Block structure (paragraphs, lists, tables) on the escaped text
-    md = blockFormat(md);
-
-    // 5. Re-insert code blocks (rendered)
-    md = md.replace(/\u0000CB(\d+)\u0000/g, function (_, i) {
-      var b = blocks[Number(i)];
-      return isDiagramCode(b.code, b.lang) ? diagramBlock(b.code) : codeBlock(b.code, b.lang);
-    });
-
-    return md;
-  }
-
-  // Inline-only (no block wrapping) — for one-liners inside callouts
-  function renderInline(text) {
-    return inlineFormat(escapeHtml(String(text)));
-  }
-
-  function inlineFormat(s) {
-    // inline code `...`
-    s = s.replace(/`([^`\n]+)`/g, function (_, c) { return '<code>' + c + '</code>'; });
-    // bold **...**
-    s = s.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
-    return s;
-  }
-
-  function blockFormat(s) {
-    var lines = s.split('\n');
-    var out = [];
-    var i = 0;
-
-    while (i < lines.length) {
-      var line = lines[i];
-
-      // skip protected code tokens as their own block
-      if (/^\u0000CB\d+\u0000$/.test(line.trim())) { out.push(line.trim()); i++; continue; }
-
-      // blank
-      if (!line.trim()) { i++; continue; }
-
-      // table (line with | and a following |---| separator)
-      if (line.indexOf('|') !== -1 && i + 1 < lines.length && /^\s*\|?[\s:|-]+\|?\s*$/.test(lines[i + 1]) && lines[i + 1].indexOf('-') !== -1) {
-        var tbl = [];
-        var header = line;
-        i += 2; // skip header + separator
-        while (i < lines.length && lines[i].indexOf('|') !== -1 && lines[i].trim()) {
-          tbl.push(lines[i]); i++;
-        }
-        out.push(renderTable(header, tbl));
-        continue;
-      }
-
-      // unordered list
-      if (/^\s*[-*]\s+/.test(line)) {
-        var ul = [];
-        while (i < lines.length && /^\s*[-*]\s+/.test(lines[i])) {
-          ul.push('<li>' + lines[i].replace(/^\s*[-*]\s+/, '') + '</li>'); i++;
-        }
-        out.push('<ul>' + ul.join('') + '</ul>');
-        continue;
-      }
-
-      // ordered list
-      if (/^\s*\d+\.\s+/.test(line)) {
-        var ol = [];
-        while (i < lines.length && /^\s*\d+\.\s+/.test(lines[i])) {
-          ol.push('<li>' + lines[i].replace(/^\s*\d+\.\s+/, '') + '</li>'); i++;
-        }
-        out.push('<ol>' + ol.join('') + '</ol>');
-        continue;
-      }
-
-      // heading (#, ##, ###)
-      var hm = line.match(/^(#{1,4})\s+(.*)$/);
-      if (hm) {
-        var lvl = Math.min(hm[1].length + 1, 4);
-        out.push('<h' + lvl + '>' + hm[2] + '</h' + lvl + '>');
-        i++;
-        continue;
-      }
-
-      // horizontal rule
-      if (/^\s*---+\s*$/.test(line)) { i++; continue; }
-
-      // paragraph (gather consecutive non-structural lines)
-      var para = [line];
-      i++;
-      while (i < lines.length && lines[i].trim() &&
-             !/^\s*[-*]\s+/.test(lines[i]) &&
-             !/^\s*\d+\.\s+/.test(lines[i]) &&
-             !/^(#{1,4})\s+/.test(lines[i]) &&
-             !/^\u0000CB\d+\u0000$/.test(lines[i].trim()) &&
-             lines[i].indexOf('|') === -1) {
-        para.push(lines[i]); i++;
-      }
-      out.push('<p>' + para.join('<br>') + '</p>');
-    }
-
-    return out.join('\n');
-  }
-
-  function renderTable(headerLine, rows) {
-    function cells(l) {
-      return l.replace(/^\s*\|/, '').replace(/\|\s*$/, '').split('|').map(function (c) { return c.trim(); });
-    }
-    var th = cells(headerLine).map(function (c) { return '<th>' + c + '</th>'; }).join('');
-    var body = rows.map(function (r) {
-      return '<tr>' + cells(r).map(function (c) { return '<td>' + c + '</td>'; }).join('') + '</tr>';
-    }).join('');
-    return '<table><thead><tr>' + th + '</tr></thead><tbody>' + body + '</tbody></table>';
-  }
-
-  /* ===================== Code block + highlighting ===================== */
-  function codeBlock(code, lang) {
-    var highlighted = highlightCode(code, lang);
-    var label = lang || 'text';
-    return (
-      '<div class="code-block">' +
-        '<div class="code-block__bar">' +
-          '<span class="code-block__lang">' + escapeHtml(label) + '</span>' +
-        '</div>' +
-        '<pre><button class="code-copy" type="button">Copy</button><code>' +
-          highlighted + '</code></pre>' +
-      '</div>'
-    );
-  }
-
-  // Detect ASCII HLD/LLD art — lots of box-drawing chars → render as diagram
-  function isDiagramCode(code, lang) {
-    if (lang && /^(java|bash|sh|json|yaml|yml|xml|sql|js|javascript|ts|properties|kotlin|groovy|dockerfile|python|py)$/.test(lang)) return false;
-    var boxChars = (code.match(/[─│┌┐└┘├┤┬┴┼═║╔╗╚╝╠╣╦╩╬▶▼◀▲→←↑↓╌╎]/g) || []).length;
-    return boxChars > 6;
-  }
-
-  function diagramBlock(code) {
-    return (
-      '<div class="diagram">' +
-        '<div class="diagram__head"><span class="diagram__label">Diagram</span></div>' +
-        '<pre class="diagram__art">' + escapeHtml(code) + '</pre>' +
-      '</div>'
-    );
-  }
-
-  // Basic syntax highlighter — keywords, types, strings, numbers, comments.
-  // Operates on already-escaped text; protects strings/comments via tokens.
-  var JAVA_KEYWORDS = ('abstract assert boolean break byte case catch char class const continue default do ' +
-    'double else enum extends final finally float for goto if implements import instanceof int interface ' +
-    'long native new package private protected public return short static strictfp super switch synchronized ' +
-    'this throw throws transient try void volatile while var record sealed permits yield true false null').split(' ');
-
-  var KW_SET = {};
-  JAVA_KEYWORDS.forEach(function (k) { KW_SET[k] = true; });
-
-  function highlightCode(code, lang) {
-    var esc = escapeHtml(code);
-
-    // language families that use //, /* */, # comments and "strings"
-    var isCurly = !lang || /^(java|js|javascript|ts|typescript|kotlin|groovy|c|cpp|cs|go|rust|php)$/.test(lang);
-    var isHash = /^(bash|sh|shell|yaml|yml|python|py|ruby|properties|dockerfile)$/.test(lang);
-    var isSql = lang === 'sql';
-
-    var store = [];
-    function stash(cls, text) {
-      var tok = '\u0001' + store.length + '\u0001';
-      store.push('<span class="' + cls + '">' + text + '</span>');
-      return tok;
-    }
-
-    // comments
-    if (isCurly) {
-      esc = esc.replace(/\/\*[\s\S]*?\*\//g, function (m) { return stash('tok-comment', m); });
-      esc = esc.replace(/\/\/[^\n]*/g, function (m) { return stash('tok-comment', m); });
-    }
-    if (isHash || isSql) {
-      if (isSql) esc = esc.replace(/--[^\n]*/g, function (m) { return stash('tok-comment', m); });
-      esc = esc.replace(/#[^\n]*/g, function (m) { return stash('tok-comment', m); });
-    }
-
-    // strings (double, single, backtick)  — note: already HTML-escaped so quotes are literal
-    esc = esc.replace(/"(?:\\.|[^"\\\n])*"/g, function (m) { return stash('tok-string', m); });
-    esc = esc.replace(/'(?:\\.|[^'\\\n])*'/g, function (m) { return stash('tok-string', m); });
-
-    // annotations @Foo
-    esc = esc.replace(/@[A-Za-z_]\w*/g, function (m) { return stash('tok-type', m); });
-
-    // numbers
-    esc = esc.replace(/\b\d[\d_.]*[fFdDlL]?\b/g, function (m) { return stash('tok-number', m); });
-
-    // identifiers → keywords / types / function calls
-    esc = esc.replace(/\b[A-Za-z_]\w*\b(\s*\()?/g, function (m, paren) {
-      var word = paren ? m.slice(0, m.length - paren.length).trim() : m;
-      var tail = paren || '';
-      if (KW_SET[word]) return stash('tok-keyword', word) + tail;
-      if (tail) return stash('tok-fn', word) + tail;          // function call
-      if (/^[A-Z]/.test(word)) return stash('tok-type', word); // Type-like
-      return m;
-    });
-
-    // restore stashed tokens
-    esc = esc.replace(/\u0001(\d+)\u0001/g, function (_, i) { return store[Number(i)]; });
-    return esc;
-  }
-
-  function copyCode(btn) {
-    var pre = btn.closest('pre');
-    if (!pre) return;
-    var codeEl = pre.querySelector('code');
-    var text = codeEl ? codeEl.innerText : pre.innerText;
-    var done = function () {
-      var old = btn.textContent;
-      btn.textContent = 'Copied!';
-      setTimeout(function () { btn.textContent = old; }, 1400);
-    };
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(text).then(done).catch(function () { fallbackCopy(text, done); });
-    } else {
-      fallbackCopy(text, done);
-    }
-  }
-
-  function fallbackCopy(text, cb) {
-    var ta = document.createElement('textarea');
-    ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
-    document.body.appendChild(ta); ta.select();
-    try { document.execCommand('copy'); } catch (e) {}
-    document.body.removeChild(ta);
-    if (cb) cb();
-  }
-
-  function renderDiagram(text, kind) {
-    // The source may be a fenced block already — renderMarkdown handles that.
-    // If it is raw ASCII without fences, wrap directly.
-    if (/```/.test(text)) return renderMarkdown(text);
-    return (
-      '<div class="diagram">' +
-        '<div class="diagram__head"><span class="diagram__label">' + (kind || 'Diagram') +
-          '</span></div>' +
-        '<pre class="diagram__art">' + escapeHtml(String(text)) + '</pre>' +
-      '</div>'
-    );
-  }
-
-  /* ============================ Sidebar nav ============================ */
-  function renderChapterNav() {
-    var html = state.chapters.map(function (c) {
-      return (
-        '<div class="nav-item" data-route="#/chapter/' + c.chapter + '" data-chapter="' + c.chapter + '">' +
-          '<span class="nav-item__text">' + pad2(c.chapter) + '. ' + escapeHtml(c.chapterTitle) + '</span>' +
-          '<span class="count">' + c.count + '</span>' +
-        '</div>'
-      );
-    }).join('');
-    el.chapterNav.innerHTML = html;
-
-    bindDelegated(el.chapterNav, '[data-route]', function (node) {
-      navigate(node.getAttribute('data-route'));
-    });
-    // also wire the static Home nav item
-    bindDelegated(el.sidebar, '[data-route="#/home"]', function () { navigate('#/home'); });
-  }
-
-  function setActiveNav(type, chapterNum) {
-    var items = el.sidebar.querySelectorAll('.nav-item');
-    items.forEach(function (it) { it.classList.remove('is-active'); });
-    if (type === 'home') {
-      var home = el.sidebar.querySelector('[data-route="#/home"]');
-      if (home) home.classList.add('is-active');
-    } else if (type === 'chapter' && chapterNum != null) {
-      var ch = el.sidebar.querySelector('[data-chapter="' + chapterNum + '"]');
-      if (ch) ch.classList.add('is-active');
-    }
-  }
-
-  /* ========================= Progress (localStorage) =================== */
-  function loadReviewed() {
-    try {
-      var raw = localStorage.getItem(LS_REVIEWED);
-      return new Set(raw ? JSON.parse(raw) : []);
-    } catch (e) { return new Set(); }
-  }
-  function saveReviewed() {
-    try { localStorage.setItem(LS_REVIEWED, JSON.stringify(Array.from(state.reviewed))); } catch (e) {}
-  }
-  function toggleReviewed(id, btn) {
-    if (state.reviewed.has(id)) state.reviewed.delete(id);
-    else state.reviewed.add(id);
-    saveReviewed();
-    var on = state.reviewed.has(id);
-    if (btn) {
-      btn.classList.toggle('is-reviewed', on);
-      var icon = btn.querySelector('.clap-icon');
-      var label = btn.querySelector('.clap-label');
-      if (icon) icon.textContent = on ? '✓' : '👏';
-      if (label) label.textContent = on ? 'Reviewed' : 'Mark as reviewed';
-      var card = btn.closest('.qcard');
-      if (card) card.classList.toggle('is-reviewed', on);
-    }
-  }
-  function countReviewedInChapter(chapterNum) {
-    var data = state.chapterCache[String(chapterNum)];
-    if (!data || !data.answers) {
-      // fall back to search index if loaded
-      if (state.searchIndex) {
-        var n = 0;
-        state.searchIndex.forEach(function (it) {
-          if (Number(it.chapter) === Number(chapterNum) && state.reviewed.has(it.id)) n++;
-        });
-        return n;
-      }
-      return 0;
-    }
-    var count = 0;
-    data.answers.forEach(function (a) { if (state.reviewed.has(a.id)) count++; });
-    return count;
-  }
-
-  /* ========================= Global events / UX ======================= */
-  function wireGlobalEvents() {
-    // search w/ debounce
-    el.searchInput.addEventListener('input', debounce(function () {
-      var q = el.searchInput.value.trim();
-      if (q) navigate('#/search/' + encodeURIComponent(q));
-      else navigate('#/home');
-    }, 220));
-
-    el.searchInput.addEventListener('keydown', function (e) {
-      if (e.key === 'Escape') { el.searchInput.value = ''; el.searchInput.blur(); navigate('#/home'); }
-    });
-
-    // Ctrl/Cmd + K → focus search
-    document.addEventListener('keydown', function (e) {
-      if ((e.ctrlKey || e.metaKey) && (e.key === 'k' || e.key === 'K')) {
-        e.preventDefault();
-        el.searchInput.focus();
-        el.searchInput.select();
-      }
-      if (e.key === '/' && document.activeElement !== el.searchInput) {
-        e.preventDefault(); el.searchInput.focus();
+/* Java Interview Mastery — Dashboard Table Style */
+(function(){
+'use strict';
+var DIR='data/',LS='jim.reviewed';
+var S={ch:[],grp:null,total:0,idx:null,cache:{},rev:loadR()};
+var $=function(id){return document.getElementById(id);};
+var body=$('pageBody'),title=$('pageTitle'),acts=$('pageActions'),qnav=$('qnav');
+var prevBtn=$('prevBtn'),nextBtn=$('nextBtn'),qnavPos=$('qnavPos'),searchIn=$('searchInput');
+
+document.addEventListener('DOMContentLoaded',function(){
+  wire();
+  Promise.all([fetchJ(DIR+'chapters.json'),fetchJ(DIR+'chapters_grouped.json')]).then(function(r){
+    S.ch=r[0].chapters||[];S.grp=r[1];S.total=r[0].totalAnswers||0;route();
+  });
+});
+window.addEventListener('hashchange',route);
+
+function route(){
+  var h=location.hash.replace(/^#\/?/,''),p=h.split('/').filter(Boolean);
+  qnav.hidden=true;
+  if(!p.length||p[0]==='home')return goHome();
+  if(p[0]==='chapter'&&p.length===2)return goCh(+p[1]);
+  if(p[0]==='chapter'&&p.length===4&&p[2]==='topic')return goTopic(+p[1],+p[3]);
+  if(p[0]==='chapter'&&p.length===5)return goQ(+p[1],+p[3],+p[4]);
+  if(p[0]==='q')return goById(p[1]);
+  if(p[0]==='search')return goSearch(decodeURIComponent(p.slice(1).join('/')));
+  goHome();
+}
+function nav(h){if(location.hash===h)route();else location.hash=h;}
+
+// ===== HOME — Chapter table =====
+function goHome(){
+  title.textContent='Interview Topics';
+  acts.innerHTML='<span class="pill pill--blue">'+S.total.toLocaleString()+' Questions</span> <span class="pill pill--green">28 Chapters</span>';
+  var html='<table class="tbl"><thead><tr>'+
+    '<th style="width:60px">#</th>'+
+    '<th>CHAPTER</th>'+
+    '<th style="width:120px">TOPICS</th>'+
+    '<th style="width:120px">QUESTIONS</th>'+
+    '<th style="width:120px">STATUS</th>'+
+    '</tr></thead><tbody>';
+  S.ch.forEach(function(c){
+    var g=findG(c.chapter),tc=g?g.topics.length:0;
+    var revN=countR(c.chapter),done=revN===c.count;
+    var statusPill=revN===0?'<span class="pill pill--gray">Not Started</span>':
+      done?'<span class="pill pill--green">✓ Complete</span>':
+      '<span class="pill pill--orange">'+revN+'/'+c.count+' Done</span>';
+    html+='<tr data-go="#/chapter/'+c.chapter+'">'+
+      '<td><span class="badge badge--num">'+pad(c.chapter)+'</span></td>'+
+      '<td><strong>'+esc(c.chapterTitle)+'</strong></td>'+
+      '<td><span class="pill pill--blue">'+tc+' topics</span></td>'+
+      '<td>'+c.count+'</td>'+
+      '<td>'+statusPill+'</td></tr>';
+  });
+  html+='</tbody></table>';
+  body.innerHTML=html;
+  bindC(body,'[data-go]',function(el){nav(el.dataset.go||el.closest('[data-go]').dataset.go);});
+  scrollTo(0,0);
+}
+
+// ===== CHAPTER — Topic table =====
+function goCh(num){
+  var m=findC(num),g=findG(num);if(!m||!g)return goHome();
+  title.innerHTML=crumb([['#/home','Home']])+esc(m.chapterTitle);
+  acts.innerHTML='<span class="pill pill--dark">Ch '+pad(num)+'</span> <span class="pill pill--blue">'+g.topics.length+' Topics</span> <span class="pill pill--gray">'+m.count+' Qs</span>';
+
+  var html='<table class="tbl"><thead><tr>'+
+    '<th style="width:50px">#</th>'+
+    '<th>TOPIC</th>'+
+    '<th style="width:100px">QUESTIONS</th>'+
+    '<th style="width:100px">RANGE</th>'+
+    '<th style="width:110px">STATUS</th>'+
+    '</tr></thead><tbody>';
+  g.topics.forEach(function(t,i){
+    var revN=0;t.ids.forEach(function(id){if(S.rev.has(id))revN++;});
+    var statusPill=revN===0?'<span class="pill pill--gray">New</span>':
+      revN===t.count?'<span class="pill pill--green">✓ Done</span>':
+      '<span class="pill pill--orange">'+revN+'/'+t.count+'</span>';
+    html+='<tr data-go="#/chapter/'+num+'/topic/'+i+'">'+
+      '<td><span class="badge badge--num">'+(i+1)+'</span></td>'+
+      '<td>'+esc(t.title)+'</td>'+
+      '<td>'+t.count+'</td>'+
+      '<td><span class="pill pill--gray">'+t.ids[0]+(t.count>1?' – '+t.ids[t.count-1]:'')+'</span></td>'+
+      '<td>'+statusPill+'</td></tr>';
+  });
+  html+='</tbody></table>';
+  body.innerHTML=html;
+  bindC(body,'[data-go]',function(el){nav(el.dataset.go||el.closest('[data-go]').dataset.go);});
+
+  // Preload question titles for better topic names
+  loadIdx().then(function(idx){
+    var map={};
+    idx.forEach(function(it){var q=it.question;var seps=['—',' – ',' - ','(',','];for(var i=0;i<seps.length;i++){var p=q.indexOf(seps[i]);if(p>10&&p<80){q=q.slice(0,p);break;}}if(q.length>65)q=q.slice(0,62)+'...';map[it.id]=q.trim();});
+    body.querySelectorAll('tbody tr').forEach(function(tr,i){
+      if(i<g.topics.length){
+        var t=g.topics[i],td=tr.querySelectorAll('td')[1];
+        var bad=(t.title.match(/&/g)||[]).length>=2||t.title.length<8;
+        if(bad&&map[t.ids[0]])td.innerHTML='<strong>'+esc(map[t.ids[0]])+'</strong>';
       }
     });
+  });
+  scrollTo(0,0);
+}
 
-    // mobile drawer
-    el.menuToggle.addEventListener('click', toggleDrawer);
-    el.backdrop.addEventListener('click', closeDrawer);
+// ===== TOPIC — Questions with expandable answers =====
+function goTopic(ch,ti){
+  var m=findC(ch),g=findG(ch);if(!m||!g||ti>=g.topics.length)return goCh(ch);
+  var topic=g.topics[ti];
+  title.innerHTML=crumb([['#/home','Home'],['#/chapter/'+ch,m.chapterTitle]])+esc(topic.title);
+  acts.innerHTML='<span class="pill pill--dark">Topic '+(ti+1)+'/'+g.topics.length+'</span> <span class="pill pill--blue">'+topic.count+' Questions</span>'+
+    (ti>0?' <button class="btn btn--sm btn--outline" data-go="#/chapter/'+ch+'/topic/'+(ti-1)+'">← Prev Topic</button>':'')+
+    (ti<g.topics.length-1?' <button class="btn btn--sm btn--primary" data-go="#/chapter/'+ch+'/topic/'+(ti+1)+'">Next Topic →</button>':'');
 
-    // back to top
-    el.scrollTop.addEventListener('click', function () { scrollToTop(false); });
-    window.addEventListener('scroll', throttle(function () {
-      el.scrollTop.classList.toggle('is-visible', window.scrollY > 500);
-    }, 150));
-  }
+  showLoad();
+  loadCh(ch).then(function(data){
+    var ans=data.answers||[];
+    var idSet={};topic.ids.forEach(function(id){idSet[id]=1;});
+    var tAns=ans.filter(function(a){return idSet[a.id];});
 
-  function toggleDrawer() {
-    var open = el.sidebar.classList.toggle('is-open');
-    el.backdrop.hidden = false;
-    el.backdrop.classList.toggle('is-visible', open);
-    el.menuToggle.setAttribute('aria-expanded', String(open));
-    if (!open) setTimeout(function () { el.backdrop.hidden = true; }, 200);
-  }
-  function closeDrawer() {
-    el.sidebar.classList.remove('is-open');
-    el.backdrop.classList.remove('is-visible');
-    el.menuToggle.setAttribute('aria-expanded', 'false');
-    setTimeout(function () { el.backdrop.hidden = true; }, 200);
-  }
+    var html='';
+    tAns.forEach(function(a,qi){
+      var rev=S.rev.has(a.id);
+      var sec=a.sections||{};
 
-  function scrollToTop(instant) {
-    window.scrollTo({ top: 0, behavior: instant ? 'auto' : 'smooth' });
-  }
+      html+='<div class="qa-card" id="qa-'+qi+'">';
+      html+='<div class="qa-card__head">';
+      html+='<span class="badge badge--num">'+(qi+1)+'</span>';
+      html+='<span class="pill pill--gray">'+esc(a.id)+'</span>';
+      html+='<strong class="qa-card__q">'+esc(a.question)+'</strong>';
+      html+='<button class="btn btn--sm '+(rev?'btn--green':'btn--outline')+'" data-rev="'+a.id+'">'+(rev?'✓':'☐')+'</button>';
+      html+='</div>';
 
-  /* ============================== Helpers ============================== */
-  function showLoading(msg) {
-    el.content.innerHTML = '<div class="loading"><div class="spinner" role="status"></div><span>' +
-      escapeHtml(msg || 'Loading…') + '</span></div>';
-  }
-  function emptyState(icon, title, sub) {
-    return '<div class="empty"><div class="empty__icon">' + icon + '</div>' +
-      '<div class="empty__title">' + title + '</div>' +
-      '<div>' + escapeHtml(sub || '') + '</div></div>';
-  }
-  function renderError(msg, err) {
-    if (err && window.console) console.error(msg, err);
-    el.content.innerHTML = emptyState('⚠️', escapeHtml(msg),
-      (err && err.message ? err.message : 'If you opened this file directly, try serving it over http (e.g. python3 -m http.server).'));
-  }
+      // ANSWER — always visible
+      html+='<div class="qa-card__answer">';
 
-  function escapeHtml(s) {
-    return String(s)
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;');
-  }
+      if(sec.s1_definition){
+        html+='<div class="sec sec--green"><div class="sec__head">📌 Definition</div>';
+        var s1=sec.s1_definition;
+        if(typeof s1==='string')html+=rMd(s1);
+        else{if(s1.profdef)html+=rMd(s1.profdef);if(s1.analogy)html+='<p class="def-analogy">'+rI(s1.analogy)+'</p>';if(s1.oneliner)html+='<div class="def-oneliner">'+rI(s1.oneliner)+'</div>';}
+        html+='</div>';
+      }
+      if(sec.s2_technical){html+='<div class="sec"><div class="sec__head">📖 Technical</div>'+rMd(sec.s2_technical)+'</div>';}
+      if(sec.s3_banking){html+='<div class="sec sec--orange"><div class="sec__head">🏦 Banking Scenario</div>'+rMd(sec.s3_banking)+'</div>';}
+      if(sec.s4a_structure||sec.s4d_java||sec.s4e_build){
+        html+='<div class="sec sec--code"><div class="sec__head">💻 Code</div>';
+        if(sec.s4a_structure)html+='<h4>Structure</h4>'+rMd(sec.s4a_structure);
+        if(sec.s4d_java)html+='<h4>Java</h4>'+rMd(sec.s4d_java);
+        if(sec.s4e_build)html+='<h4>Build & Run</h4>'+rMd(sec.s4e_build);
+        html+='</div>';
+      }
+      if(sec.s5_journey||sec.s5b_flow||sec.s5c_hld||sec.s5d_lld){
+        html+='<div class="sec"><div class="sec__head">📈 Data Journey</div>';
+        if(sec.s5_journey)html+=rMd(sec.s5_journey);
+        if(sec.s5b_flow)html+='<h4>Flow</h4>'+rMd(sec.s5b_flow);
+        if(sec.s5c_hld)html+='<h4>HLD</h4>'+rDiag(sec.s5c_hld,'HLD');
+        if(sec.s5d_lld)html+='<h4>LLD</h4>'+rDiag(sec.s5d_lld,'LLD');
+        html+='</div>';
+      }
+      if(sec.s6_takeaway){html+='<div class="sec sec--green"><div class="sec__head">✅ Takeaway</div><div class="takeaway">'+rMd(sec.s6_takeaway)+'</div></div>';}
 
-  function highlight(text, query) {
-    var safe = escapeHtml(text);
-    var tokens = query.toLowerCase().split(/\s+/).filter(Boolean)
-      .map(function (t) { return t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); });
-    if (!tokens.length) return safe;
-    var re = new RegExp('(' + tokens.join('|') + ')', 'ig');
-    return safe.replace(re, '<mark>$1</mark>');
-  }
-
-  function pad2(n) { n = String(n); return n.length < 2 ? '0' + n : n; }
-
-  function bindDelegated(container, selector, handler) {
-    container.addEventListener('click', function (e) {
-      var node = e.target.closest(selector);
-      if (node && container.contains(node)) handler(node, e);
+      html+='</div></div>';
     });
-  }
 
-  function debounce(fn, wait) {
-    var t;
-    return function () {
-      var ctx = this, args = arguments;
-      clearTimeout(t);
-      t = setTimeout(function () { fn.apply(ctx, args); }, wait);
-    };
-  }
-  function throttle(fn, wait) {
-    var last = 0, timer;
-    return function () {
-      var now = Date.now(), ctx = this, args = arguments;
-      var remain = wait - (now - last);
-      if (remain <= 0) { last = now; fn.apply(ctx, args); }
-      else { clearTimeout(timer); timer = setTimeout(function () { last = Date.now(); fn.apply(ctx, args); }, remain); }
-    };
-  }
+    body.innerHTML=html;
+    bindC(body,'.copy-btn',function(b){cpCode(b);});
+    bindC(body,'[data-rev]',function(btn){
+      var id=btn.dataset.rev;
+      if(S.rev.has(id))S.rev.delete(id);else S.rev.add(id);saveR();
+      var on=S.rev.has(id);
+      btn.className='btn btn--sm '+(on?'btn--green':'btn--outline');
+      btn.textContent=on?'✓':'☐';
+    });
+    bindC(acts,'[data-go]',function(el){nav(el.dataset.go);});
+    scrollTo(0,0);
+  });
+}
+
+// ===== QUESTION — Full article =====
+function goQ(ch,ti,qi){
+  var m=findC(ch),g=findG(ch);if(!m||!g||ti>=g.topics.length)return goCh(ch);
+  var topic=g.topics[ti];
+  showLoad();
+  loadCh(ch).then(function(data){
+    var ans=data.answers||[];
+    var idSet={};topic.ids.forEach(function(id){idSet[id]=1;});
+    var tAns=ans.filter(function(a){return idSet[a.id];});
+    if(qi<0||qi>=tAns.length)return goTopic(ch,ti);
+    var a=tAns[qi],rev=S.rev.has(a.id),sec=a.sections||{};
+
+    title.innerHTML=crumb([['#/home','Home'],['#/chapter/'+ch,m.chapterTitle],['#/chapter/'+ch+'/topic/'+ti,topic.title]])+esc(a.id);
+    acts.innerHTML='<button class="btn btn--sm '+(rev?'btn--green':'btn--outline')+'" id="clapBtn" data-qid="'+a.id+'">'+(rev?'✓ Reviewed':'Mark Reviewed')+'</button>';
+
+    var html='<div class="article">';
+    html+='<div class="article__id">'+esc(a.id)+' · Chapter '+pad(ch)+' · '+esc(m.chapterTitle)+' · Topic: '+esc(topic.title)+'</div>';
+    html+='<h2 class="article__title">'+esc(a.question)+'</h2>';
+
+    if(sec.s1_definition){
+      html+='<div class="sec sec--green"><div class="sec__head">📌 Definition</div>';
+      var s1=sec.s1_definition;
+      if(typeof s1==='string')html+=rMd(s1);
+      else{if(s1.profdef)html+=rMd(s1.profdef);if(s1.analogy)html+='<p class="def-analogy">'+rI(s1.analogy)+'</p>';if(s1.oneliner)html+='<div class="def-oneliner">'+rI(s1.oneliner)+'</div>';}
+      html+='</div>';
+    }
+    if(sec.s2_technical){html+='<div class="sec"><div class="sec__head">📖 Technical</div>'+rMd(sec.s2_technical)+'</div>';}
+    if(sec.s3_banking){html+='<div class="sec sec--orange"><div class="sec__head">🏦 Banking Scenario</div>'+rMd(sec.s3_banking)+'</div>';}
+    if(sec.s4a_structure||sec.s4d_java||sec.s4e_build){
+      html+='<div class="sec sec--code"><div class="sec__head">💻 Code</div>';
+      if(sec.s4a_structure)html+='<h4>Structure</h4>'+rMd(sec.s4a_structure);
+      if(sec.s4d_java)html+='<h4>Java</h4>'+rMd(sec.s4d_java);
+      if(sec.s4e_build)html+='<h4>Build & Run</h4>'+rMd(sec.s4e_build);
+      html+='</div>';
+    }
+    if(sec.s5_journey||sec.s5b_flow||sec.s5c_hld||sec.s5d_lld){
+      html+='<div class="sec"><div class="sec__head">📈 Data Journey</div>';
+      if(sec.s5_journey)html+=rMd(sec.s5_journey);
+      if(sec.s5b_flow)html+='<h4>Flow</h4>'+rMd(sec.s5b_flow);
+      if(sec.s5c_hld)html+='<h4>HLD</h4>'+rDiag(sec.s5c_hld,'HLD');
+      if(sec.s5d_lld)html+='<h4>LLD</h4>'+rDiag(sec.s5d_lld,'LLD');
+      html+='</div>';
+    }
+    if(sec.s6_takeaway){html+='<div class="sec sec--green"><div class="sec__head">✅ Takeaway</div><div class="takeaway">'+rMd(sec.s6_takeaway)+'</div></div>';}
+    html+='</div>';
+    body.innerHTML=html;
+
+    $('clapBtn').onclick=function(){var id=this.dataset.qid;if(S.rev.has(id))S.rev.delete(id);else S.rev.add(id);saveR();var on=S.rev.has(id);this.className='btn btn--sm '+(on?'btn--green':'btn--outline');this.textContent=on?'✓ Reviewed':'Mark Reviewed';};
+    bindC(body,'.copy-btn',function(b){cpCode(b);});
+    bindC(acts,'[data-go]',function(el){nav(el.dataset.go);});
+
+    qnav.hidden=false;
+    prevBtn.disabled=qi===0;nextBtn.disabled=qi===tAns.length-1;
+    qnavPos.textContent=(qi+1)+' / '+tAns.length;
+    prevBtn.onclick=function(){if(qi>0)nav('#/chapter/'+ch+'/'+ti+'/'+(qi-1));};
+    nextBtn.onclick=function(){if(qi<tAns.length-1)nav('#/chapter/'+ch+'/'+ti+'/'+(qi+1));};
+    scrollTo(0,0);
+  });
+}
+
+function goById(id){
+  showLoad();loadIdx().then(function(idx){
+    var h=null;for(var i=0;i<idx.length;i++){if(idx[i].id===id){h=idx[i];break;}}
+    if(!h){body.innerHTML='<div class="empty"><div class="empty__icon">🔍</div><div class="empty__title">Not found</div></div>';return;}
+    var g=findG(h.chapter);if(g){for(var ti=0;ti<g.topics.length;ti++){var ids=g.topics[ti].ids;for(var qi=0;qi<ids.length;qi++){if(ids[qi]===id){nav('#/chapter/'+h.chapter+'/'+ti+'/'+qi);return;}}}}
+    nav('#/chapter/'+h.chapter);
+  });
+}
+
+function goSearch(q){
+  if(!q||!q.trim())return goHome();
+  title.innerHTML=crumb([['#/home','Home']])+'Search Results';
+  acts.innerHTML='';showLoad();
+  loadIdx().then(function(idx){
+    var res=fuzzy(q,idx).slice(0,80);
+    if(!res.length){body.innerHTML='<div class="empty"><div class="empty__icon">🔍</div><div class="empty__title">No results for "'+esc(q)+'"</div></div>';return;}
+    var html='<p style="margin-bottom:12px;color:#999">'+res.length+' results for "'+esc(q)+'"</p><table class="tbl"><thead><tr><th style="width:80px">ID</th><th>QUESTION</th><th style="width:80px">CH</th></tr></thead><tbody>';
+    res.forEach(function(r){html+='<tr data-go="#/q/'+r.id+'"><td><span class="pill pill--gray">'+esc(r.id)+'</span></td><td>'+hl(r.question,q)+'</td><td>'+pad(r.chapter)+'</td></tr>';});
+    html+='</tbody></table>';
+    body.innerHTML=html;
+    bindC(body,'[data-go]',function(el){nav(el.dataset.go||el.closest('[data-go]').dataset.go);});
+  });
+}
+
+// ===== Helpers =====
+function crumb(items){return '<span class="crumb">'+items.map(function(i){return '<a data-go="'+i[0]+'">'+esc(i[1])+'</a>';}).join(' <span>›</span> ')+' › </span>';}
+function wire(){
+  searchIn.addEventListener('input',debounce(function(){var q=searchIn.value.trim();if(q)nav('#/search/'+encodeURIComponent(q));else nav('#/home');},250));
+  searchIn.addEventListener('keydown',function(e){if(e.key==='Escape'){searchIn.value='';searchIn.blur();nav('#/home');}});
+  document.addEventListener('keydown',function(e){
+    if((e.ctrlKey||e.metaKey)&&(e.key==='k'||e.key==='K')){e.preventDefault();searchIn.focus();searchIn.select();}
+    if(!qnav.hidden&&document.activeElement.tagName!=='INPUT'){if(e.key==='ArrowLeft'&&!prevBtn.disabled){e.preventDefault();prevBtn.click();}if(e.key==='ArrowRight'&&!nextBtn.disabled){e.preventDefault();nextBtn.click();}}
+  });
+  // Click breadcrumb links
+  document.addEventListener('click',function(e){var a=e.target.closest('[data-go]');if(a&&a.dataset.go)nav(a.dataset.go);});
+}
+function fetchJ(u){return fetch(u,{cache:'force-cache'}).then(function(r){if(!r.ok)throw new Error(r.status);return r.json();});}
+function findC(n){n=+n;for(var i=0;i<S.ch.length;i++){if(+S.ch[i].chapter===n)return S.ch[i];}return null;}
+function findG(n){if(!S.grp)return null;n=+n;for(var i=0;i<S.grp.chapters.length;i++){if(+S.grp.chapters[i].chapter===n)return S.grp.chapters[i];}return null;}
+function loadCh(n){var k=String(n);if(S.cache[k])return Promise.resolve(S.cache[k]);var m=findC(n);if(!m)return Promise.reject('no');return fetchJ(DIR+(m.file||'ch'+pad(n)+'.json')).then(function(d){S.cache[k]=d;return d;});}
+function loadIdx(){if(S.idx)return Promise.resolve(S.idx);return fetchJ(DIR+'search-index.json').then(function(d){S.idx=Array.isArray(d)?d:d.index||[];return S.idx;});}
+function loadR(){try{var r=localStorage.getItem(LS);return new Set(r?JSON.parse(r):[]);}catch(e){return new Set();}}
+function saveR(){try{localStorage.setItem(LS,JSON.stringify(Array.from(S.rev)));}catch(e){}}
+function countR(ch){var d=S.cache[String(ch)];if(!d||!d.answers)return 0;var n=0;d.answers.forEach(function(a){if(S.rev.has(a.id))n++;});return n;}
+function showLoad(){body.innerHTML='<div class="loader"><div class="loader__spin"></div></div>';}
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function pad(n){n=String(n);return n.length<2?'0'+n:n;}
+function bindC(c,s,fn){c.addEventListener('click',function(e){var n=e.target.closest(s);if(n&&c.contains(n))fn(n,e);});}
+function debounce(fn,ms){var t;return function(){clearTimeout(t);var c=this,a=arguments;t=setTimeout(function(){fn.apply(c,a);},ms);};}
+function fuzzy(q,idx){var ql=q.toLowerCase().trim(),tk=ql.split(/\s+/).filter(Boolean),sc=[];for(var i=0;i<idx.length;i++){var h=(idx[i].question+' '+(idx[i].chapterTitle||'')+' '+idx[i].id).toLowerCase(),s=0,p=h.indexOf(ql);if(p!==-1)s+=120-Math.min(p,60);var all=true;for(var j=0;j<tk.length;j++){if(h.indexOf(tk[j])!==-1)s+=20;else all=false;}if(all&&tk.length>1)s+=25;if(s>0)sc.push({item:idx[i],score:s});}sc.sort(function(a,b){return b.score-a.score;});return sc.map(function(x){return x.item;});}
+function hl(t,q){var s=esc(t);var tk=q.toLowerCase().split(/\s+/).filter(Boolean).map(function(t){return t.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');});if(!tk.length)return s;return s.replace(new RegExp('('+tk.join('|')+')','ig'),'<mark>$1</mark>');}
+
+// Markdown
+function rMd(md){if(!md)return '';md=String(md);var bl=[];md=md.replace(/```([a-zA-Z0-9+#-]*)\n([\s\S]*?)```/g,function(_,l,c){var t='\0B'+bl.length+'\0';bl.push({l:(l||'').toLowerCase(),c:c.replace(/\n$/,'')});return t;});md=esc(md);md=md.replace(/`([^`\n]+)`/g,'<code>$1</code>');md=md.replace(/\*\*([^*]+)\*\*/g,'<strong class="kw">$1</strong>');md=bFmt(md);md=md.replace(/\0B(\d+)\0/g,function(_,i){var b=bl[+i];return isDg(b.c)?dgBlk(b.c):cdBlk(b.c,b.l);});md=autoHL(md);return md;}
+function rI(t){var s=esc(String(t));s=s.replace(/`([^`\n]+)`/g,'<code>$1</code>');s=s.replace(/\*\*([^*]+)\*\*/g,'<strong class="kw">$1</strong>');s=autoHL(s);return s;}
+
+// Auto-highlight important Java/tech keywords in prose
+function autoHL(html){
+  var terms=[
+    'thread-safe','immutable','synchronized','volatile','atomic','deadlock','race condition',
+    'heap','stack','metaspace','garbage collection','GC','JIT','bytecode','classloader',
+    'BigDecimal','null','NullPointerException','OutOfMemoryError','StackOverflowError',
+    'HashMap','ConcurrentHashMap','ArrayList','LinkedList','TreeMap','HashSet',
+    'Spring Boot','Kafka','Redis','Docker','Kubernetes','microservice','REST API',
+    'ACID','transaction','isolation','propagation','rollback','commit',
+    'JPA','Hibernate','lazy loading','eager loading','N\\+1','caching',
+    'O\\(1\\)','O\\(n\\)','O\\(log n\\)','O\\(n log n\\)','O\\(n²\\)',
+    'singleton','factory','observer','strategy','builder pattern',
+    'final','static','abstract','interface','extends','implements',
+    'try-with-resources','checked exception','unchecked exception',
+    'CompletableFuture','ExecutorService','ReentrantLock','CountDownLatch',
+    'Stream API','Optional','lambda','functional interface','Predicate','Consumer','Supplier',
+    'idempotent','circuit breaker','load balancer','rate limiting','sharding','replication',
+    'index','B-tree','primary key','foreign key','JOIN','GROUP BY',
+    'JWT','OAuth2','CSRF','XSS','SQL injection','authentication','authorization',
+    'HLD','LLD','CAP theorem','eventual consistency','strong consistency',
+    'publish-subscribe','event-driven','saga pattern','CQRS','outbox pattern'
+  ];
+  // Only highlight in text nodes (not inside tags)
+  var re=new RegExp('(?<![<\\/\\w])\\b('+terms.join('|')+')\\b(?![^<]*>)','gi');
+  html=html.replace(re,function(m){return '<mark class="hl">'+m+'</mark>';});
+  return html;
+}
+function bFmt(s){var ln=s.split('\n'),o=[],i=0;while(i<ln.length){var L=ln[i];if(/^\0B\d+\0$/.test(L.trim())){o.push(L.trim());i++;continue;}if(!L.trim()){i++;continue;}if(/^\s*[-*]\s+/.test(L)){var ul=[];while(i<ln.length&&/^\s*[-*]\s+/.test(ln[i])){ul.push('<li>'+ln[i].replace(/^\s*[-*]\s+/,'')+' </li>');i++;}o.push('<ul>'+ul.join('')+'</ul>');continue;}if(/^\s*\d+\.\s+/.test(L)){var ol=[];while(i<ln.length&&/^\s*\d+\.\s+/.test(ln[i])){ol.push('<li>'+ln[i].replace(/^\s*\d+\.\s+/,'')+' </li>');i++;}o.push('<ol>'+ol.join('')+'</ol>');continue;}if(/^\s*---+\s*$/.test(L)){i++;continue;}var p=[L];i++;while(i<ln.length&&ln[i].trim()&&!/^\s*[-*]\s+/.test(ln[i])&&!/^\s*\d+\.\s+/.test(ln[i])&&!/^\0B\d+\0$/.test(ln[i].trim())){p.push(ln[i]);i++;}o.push('<p>'+p.join('<br>')+'</p>');}return o.join('\n');}
+
+function cdBlk(c,l){return '<div class="code-wrap"><div class="code-bar"><span>'+(l||'text')+'</span><button class="copy-btn">Copy</button></div><pre><code>'+hlC(c,l)+'</code></pre></div>';}
+function isDg(c){return (c.match(/[─│┌┐└┘├┤┬┴┼═║╔╗╚╝→←↑↓▶▼]/g)||[]).length>6;}
+function dgBlk(c){return '<div class="diagram-wrap"><div class="diagram-bar">Diagram</div><pre class="diagram-art">'+esc(c)+'</pre></div>';}
+function rDiag(t,k){if(/```/.test(t))return rMd(t);return '<div class="diagram-wrap"><div class="diagram-bar">'+(k||'Diagram')+'</div><pre class="diagram-art">'+esc(String(t))+'</pre></div>';}
+var KW={};'abstract assert boolean break byte case catch char class continue default do double else enum extends final finally float for if implements import instanceof int interface long native new package private protected public return short static super switch synchronized this throw throws transient try void volatile while var record sealed true false null'.split(' ').forEach(function(k){KW[k]=1;});
+function hlC(c,l){var s=esc(c),st=[];function sh(cl,t){var tk='\x01'+st.length+'\x01';st.push('<span class="'+cl+'">'+t+'</span>');return tk;}var cu=!l||/^(java|js|ts|kotlin|go)$/.test(l);var ha=/^(bash|sh|yaml|yml|python|py)$/.test(l);if(cu){s=s.replace(/\/\*[\s\S]*?\*\//g,function(m){return sh('tk-cm',m);});s=s.replace(/\/\/[^\n]*/g,function(m){return sh('tk-cm',m);});}if(ha||l==='sql'){if(l==='sql')s=s.replace(/--[^\n]*/g,function(m){return sh('tk-cm',m);});s=s.replace(/#[^\n]*/g,function(m){return sh('tk-cm',m);});}s=s.replace(/"(?:\\.|[^"\\\n])*"/g,function(m){return sh('tk-str',m);});s=s.replace(/'(?:\\.|[^'\\\n])*'/g,function(m){return sh('tk-str',m);});s=s.replace(/@[A-Za-z_]\w*/g,function(m){return sh('tk-an',m);});s=s.replace(/\b\d[\d_.]*[fFdDlL]?\b/g,function(m){return sh('tk-num',m);});s=s.replace(/\b[A-Za-z_]\w*\b(\s*\()?/g,function(m,p){var w=p?m.slice(0,m.length-p.length).trim():m,tail=p||'';if(KW[w])return sh('tk-kw',w)+tail;if(tail)return sh('tk-fn',w)+tail;if(/^[A-Z]/.test(w))return sh('tk-ty',w);return m;});s=s.replace(/\x01(\d+)\x01/g,function(_,i){return st[+i];});return s;}
+function cpCode(btn){var pre=btn.closest('.code-wrap').querySelector('pre'),code=pre.querySelector('code'),text=code?code.innerText:pre.innerText;(navigator.clipboard?navigator.clipboard.writeText(text):Promise.reject()).then(function(){btn.textContent='Copied!';setTimeout(function(){btn.textContent='Copy';},1500);}).catch(function(){var ta=document.createElement('textarea');ta.value=text;ta.style.cssText='position:fixed;opacity:0';document.body.appendChild(ta);ta.select();document.execCommand('copy');document.body.removeChild(ta);btn.textContent='Copied!';setTimeout(function(){btn.textContent='Copy';},1500);});}
 })();

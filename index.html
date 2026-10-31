@@ -1,171 +1,48 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="theme-color" content="#ffffff" />
-  <meta name="color-scheme" content="light" />
-
-  <title>Java Interview Mastery — 2,506 Questions with Industry Answers</title>
-  <meta name="description" content="Master 2,506 real Java interview questions across 28 chapters — Core Java, Collections, Concurrency, Spring, Microservices, Kafka, System Design and more — each with professional definitions, banking-domain examples, runnable code and HLD/LLD diagrams." />
-  <meta name="keywords" content="Java interview questions, Spring Boot, Microservices, Concurrency, Collections, Kafka, System Design, JPA, Hibernate, DSA, banking domain" />
-  <meta name="author" content="Java Interview Mastery" />
-
-  <!-- Open Graph -->
-  <meta property="og:type" content="website" />
-  <meta property="og:title" content="Java Interview Mastery — 2,506 Questions with Industry Answers" />
-  <meta property="og:description" content="2,506 real Java interview questions with professional answers, banking-domain examples, runnable code and HLD/LLD diagrams." />
-  <meta property="og:site_name" content="Java Interview Mastery" />
-  <meta property="og:image" content="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='1200' height='630'%3E%3Crect width='1200' height='630' fill='%23ffffff'/%3E%3Ctext x='60' y='300' font-family='Georgia,serif' font-size='72' font-weight='700' fill='%23242424'%3EJava Interview%3C/text%3E%3Ctext x='60' y='390' font-family='Georgia,serif' font-size='72' font-weight='700' fill='%231a8917'%3EMastery%3C/text%3E%3Ctext x='60' y='470' font-family='sans-serif' font-size='34' fill='%236b6b6b'%3E2,506 Questions · 28 Chapters%3C/text%3E%3C/svg%3E" />
-
-  <!-- Twitter -->
-  <meta name="twitter:card" content="summary_large_image" />
-  <meta name="twitter:title" content="Java Interview Mastery — 2,506 Questions with Industry Answers" />
-  <meta name="twitter:description" content="2,506 real Java interview questions with professional answers, banking-domain examples and runnable code." />
-
-  <!-- Favicon (inline SVG — Medium-green circle) -->
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='16' fill='%231a8917'/%3E%3Ctext x='16' y='22' font-family='Georgia,serif' font-size='17' font-weight='700' text-anchor='middle' fill='white'%3EJ%3C/text%3E%3C/svg%3E" />
-  <link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='16' fill='%231a8917'/%3E%3Ctext x='16' y='22' font-family='Georgia,serif' font-size='17' font-weight='700' text-anchor='middle' fill='white'%3EJ%3C/text%3E%3C/svg%3E" />
-
-  <!-- Fonts: Source Serif 4 (content) + Inter (UI) + JetBrains Mono (code) -->
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600;8..60,700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
-
-  <!-- Stylesheet -->
-  <link rel="stylesheet" href="css/style.css" />
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Java Interview Mastery</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='16' fill='%234A90D9'/%3E%3Ctext x='16' y='22' font-family='sans-serif' font-size='17' font-weight='700' text-anchor='middle' fill='white'%3EJ%3C/text%3E%3C/svg%3E">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
-  <div class="app">
-    <!-- ===================== Top bar ===================== -->
-    <header class="topbar">
-      <button class="menu-toggle" id="menuToggle" aria-label="Toggle navigation" aria-expanded="false">☰</button>
-      <div class="topbar__title">Java Interview <span class="accent">Mastery</span></div>
-
-      <div class="visitor-counter" id="visitorCounter" title="Total site visitors">
-        <span class="visitor-icon">👁</span>
-        <span class="visitor-count" id="visitorCount">—</span>
-        <span class="visitor-label">visitors</span>
+  <nav class="topbar">
+    <div class="topbar__left">
+      <div class="topbar__logo">☕</div>
+      <span class="topbar__brand">Java Interview Mastery</span>
+    </div>
+    <div class="topbar__right">
+      <div class="topbar__search">
+        <input type="search" id="searchInput" placeholder="Search questions..." autocomplete="off" spellcheck="false">
+        <kbd>⌘K</kbd>
       </div>
+      <div class="topbar__visitor" id="visitorCounter">👁 <span id="visitorCount">—</span></div>
+    </div>
+  </nav>
 
-      <div class="search" role="search">
-        <span class="search__icon" aria-hidden="true">🔍</span>
-        <input
-          type="search"
-          class="search__input"
-          id="searchInput"
-          placeholder="Search 2,506 questions…"
-          aria-label="Search questions"
-          autocomplete="off"
-          spellcheck="false" />
-        <kbd class="search__kbd">Ctrl K</kbd>
-      </div>
-    </header>
-
-    <!-- ===================== Layout ===================== -->
-    <div class="layout">
-      <!-- Sidebar -->
-      <aside class="sidebar" id="sidebar" aria-label="Chapter navigation">
-        <div class="sidebar__brand">
-          <div class="sidebar__logo">J</div>
-          <div>
-            <span class="sidebar__brand-text">Java Interview Mastery</span>
-            <span class="sidebar__brand-sub">2,506 questions · 28 chapters</span>
-          </div>
-        </div>
-
-        <div class="nav-group">
-          <div class="nav-group__label">Navigate</div>
-          <div class="nav-item" data-route="#/home">
-            <span class="nav-item__text">Home</span>
-          </div>
-        </div>
-
-        <div class="nav-group">
-          <div class="nav-group__label">Chapters</div>
-          <nav id="chapterNav" aria-label="Chapters">
-            <div class="nav-item"><span class="nav-item__text text-faint">Loading…</span></div>
-          </nav>
-        </div>
-      </aside>
-
-      <!-- backdrop for mobile drawer -->
-      <div class="sidebar-backdrop" id="sidebarBackdrop" hidden></div>
-
-      <!-- Main reading column -->
-      <main class="main">
-        <div class="content" id="content" aria-live="polite">
-          <div class="loading">
-            <div class="spinner" role="status" aria-label="Loading"></div>
-            <span>Loading content…</span>
-          </div>
-        </div>
-      </main>
+  <div class="page">
+    <div class="page__header" id="pageHeader">
+      <h1 id="pageTitle">Interview Topics</h1>
+      <div class="page__actions" id="pageActions"></div>
+    </div>
+    <div class="page__body" id="pageBody">
+      <div class="loader"><div class="loader__spin"></div></div>
     </div>
   </div>
 
-  <!-- back to top -->
-  <button class="scroll-top" id="scrollTop" aria-label="Back to top" title="Back to top">↑</button>
+  <div class="qnav" id="qnav" hidden>
+    <button class="qnav__btn" id="prevBtn">← Prev</button>
+    <span class="qnav__pos" id="qnavPos"></span>
+    <button class="qnav__btn" id="nextBtn">Next →</button>
+  </div>
 
   <script src="js/app.js"></script>
-  <!-- Visitor Counter — counts unique visitors, visible to everyone -->
   <script>
-  (function() {
-    var KEY = 'jim.visitor.counted';
-    var STORE_KEY = 'jim.visitor.total';
-    var counterEl = document.getElementById('visitorCount');
-
-    // Use a simple JSON bin (free) to store count persistently
-    // Fallback: use localStorage-based estimation with a shared counter
-    var API_URL = 'https://api.countapi.xyz';
-    var NAMESPACE = 'java-interview-mastery';
-    var COUNTER_KEY = 'visitors';
-
-    function formatNumber(n) {
-      if (n >= 1000000) return (n / 1000000).toFixed(1) + 'M';
-      if (n >= 1000) return (n / 1000).toFixed(1) + 'K';
-      return String(n);
-    }
-
-    function showCount(n) {
-      if (counterEl) counterEl.textContent = formatNumber(n);
-    }
-
-    // Try CountAPI (free, no signup)
-    var isNewVisitor = !localStorage.getItem(KEY);
-
-    if (isNewVisitor) {
-      // Hit the counter (increment)
-      fetch(API_URL + '/hit/' + NAMESPACE + '/' + COUNTER_KEY)
-        .then(function(r) { return r.json(); })
-        .then(function(data) {
-          localStorage.setItem(KEY, '1');
-          localStorage.setItem(STORE_KEY, String(data.value));
-          showCount(data.value);
-        })
-        .catch(function() {
-          // Fallback: just show cached count
-          var cached = localStorage.getItem(STORE_KEY);
-          showCount(cached ? parseInt(cached, 10) : 1);
-        });
-    } else {
-      // Returning visitor — get current count without incrementing
-      fetch(API_URL + '/get/' + NAMESPACE + '/' + COUNTER_KEY)
-        .then(function(r) { return r.json(); })
-        .then(function(data) {
-          localStorage.setItem(STORE_KEY, String(data.value));
-          showCount(data.value);
-        })
-        .catch(function() {
-          var cached = localStorage.getItem(STORE_KEY);
-          showCount(cached ? parseInt(cached, 10) : '—');
-        });
-    }
-  })();
+  (function(){var el=document.getElementById('visitorCount'),K='jim.vc',SK='jim.vt',A='https://api.countapi.xyz',N='java-interview-mastery',C='visitors';function s(n){el.textContent=n>=1000?(n/1000).toFixed(1)+'K':n;}if(!localStorage.getItem(K)){fetch(A+'/hit/'+N+'/'+C).then(function(r){return r.json()}).then(function(d){localStorage.setItem(K,'1');localStorage.setItem(SK,d.value);s(d.value);}).catch(function(){s(localStorage.getItem(SK)||1);});}else{fetch(A+'/get/'+N+'/'+C).then(function(r){return r.json()}).then(function(d){localStorage.setItem(SK,d.value);s(d.value);}).catch(function(){s(localStorage.getItem(SK)||'—');});}})();
   </script>
-
-  <!-- GoatCounter — free, privacy-friendly visitor analytics (no cookies) -->
-  <script data-goatcounter="https://java-interview-mastery.goatcounter.com/count"
-          async src="//gc.zgo.at/count.js"></script>
+  <script data-goatcounter="https://java-interview-mastery.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
 </body>
 </html>
