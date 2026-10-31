@@ -405,19 +405,28 @@ function showAnalytics() {
   var acts = document.getElementById('pageActions');
   var body = document.getElementById('pageBody');
   title.textContent = '📊 Analytics Dashboard';
-  acts.innerHTML = '<span class="pill pill--blue">Admin Only</span> <button class="btn btn--sm btn--primary" id="refreshStats">↻ Refresh</button>';
+  acts.innerHTML = '<span class="pill pill--blue">Admin Only</span> <span class="pill pill--green" id="refreshTimer">↻ 10s</span> <button class="btn btn--sm btn--primary" id="refreshStats">↻ Refresh Now</button>';
   body.innerHTML = '<div class="loader"><div class="loader__spin"></div></div>';
 
   loadAnalytics(body);
 
   setTimeout(function(){
     var rb = document.getElementById('refreshStats');
-    if(rb) rb.onclick = function(){ loadAnalytics(body); };
+    if(rb) rb.onclick = function(){ loadAnalytics(body); _countdown = 10; };
   }, 100);
 
-  // Auto-refresh every 30s
-  var _autoRef = setInterval(function(){ loadAnalytics(body); }, 30000);
-  window.addEventListener('hashchange', function(){ clearInterval(_autoRef); }, {once:true});
+  // Auto-refresh every 10s with countdown
+  var _countdown = 10;
+  var _tick = setInterval(function(){
+    _countdown--;
+    var te = document.getElementById('refreshTimer');
+    if(te) te.textContent = '↻ ' + _countdown + 's';
+    if(_countdown <= 0){
+      _countdown = 10;
+      loadAnalytics(body);
+    }
+  }, 1000);
+  window.addEventListener('hashchange', function(){ clearInterval(_tick); }, {once:true});
 }
 
 function loadAnalytics(body) {
