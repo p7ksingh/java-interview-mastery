@@ -310,33 +310,30 @@ function fuzzy(q,idx){var ql=q.toLowerCase().trim(),tk=ql.split(/\s+/).filter(Bo
 function hl(t,q){var s=esc(t);var tk=q.toLowerCase().split(/\s+/).filter(Boolean).map(function(t){return t.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');});if(!tk.length)return s;return s.replace(new RegExp('('+tk.join('|')+')','ig'),'<mark>$1</mark>');}
 
 // Markdown
-function rMd(md){if(!md)return '';md=String(md);var bl=[];md=md.replace(/```([a-zA-Z0-9+#-]*)\n([\s\S]*?)```/g,function(_,l,c){var t='\0B'+bl.length+'\0';bl.push({l:(l||'').toLowerCase(),c:c.replace(/\n$/,'')});return t;});md=esc(md);md=md.replace(/`([^`\n]+)`/g,'<code>$1</code>');md=md.replace(/\*\*([^*]+)\*\*/g,'<strong class="kw">$1</strong>');md=bFmt(md);md=md.replace(/\0B(\d+)\0/g,function(_,i){var b=bl[+i];return isDg(b.c)?dgBlk(b.c):cdBlk(b.c,b.l);});md=autoHL(md);return md;}
-function rI(t){var s=esc(String(t));s=s.replace(/`([^`\n]+)`/g,'<code>$1</code>');s=s.replace(/\*\*([^*]+)\*\*/g,'<strong class="kw">$1</strong>');s=autoHL(s);return s;}
+function rMd(md){if(!md)return '';md=String(md);md=md.replace(/ — /g,' - ').replace(/—/g,' - ');var bl=[];md=md.replace(/```([a-zA-Z0-9+#-]*)\n([\s\S]*?)```/g,function(_,l,c){var t='\0B'+bl.length+'\0';bl.push({l:(l||'').toLowerCase(),c:c.replace(/\n$/,'')});return t;});md=esc(md);md=md.replace(/`([^`\n]+)`/g,'<code>$1</code>');md=md.replace(/\*\*([^*]+)\*\*/g,'<strong class="kw">$1</strong>');md=bFmt(md);md=md.replace(/\0B(\d+)\0/g,function(_,i){var b=bl[+i];return isDg(b.c)?dgBlk(b.c):cdBlk(b.c,b.l);});md=autoHL(md);return md;}
+function rI(t){t=String(t).replace(/ — /g,' - ').replace(/—/g,' - ');var s=esc(t);s=s.replace(/`([^`\n]+)`/g,'<code>$1</code>');s=s.replace(/\*\*([^*]+)\*\*/g,'<strong class="kw">$1</strong>');s=autoHL(s);return s;}
 
 // Auto-highlight important Java/tech keywords in prose
 function autoHL(html){
   var terms=[
-    'thread-safe','immutable','synchronized','volatile','atomic','deadlock','race condition',
-    'heap','stack','metaspace','garbage collection','GC','JIT','bytecode','classloader',
-    'BigDecimal','null','NullPointerException','OutOfMemoryError','StackOverflowError',
+    'thread-safe','immutable','synchronized','volatile','deadlock','race condition',
+    'garbage collection','classloader','BigDecimal',
+    'NullPointerException','OutOfMemoryError','StackOverflowError',
     'HashMap','ConcurrentHashMap','ArrayList','LinkedList','TreeMap','HashSet',
     'Spring Boot','Kafka','Redis','Docker','Kubernetes','microservice','REST API',
-    'ACID','transaction','isolation','propagation','rollback','commit',
-    'JPA','Hibernate','lazy loading','eager loading','N\\+1','caching',
-    'O\\(1\\)','O\\(n\\)','O\\(log n\\)','O\\(n log n\\)','O\\(n²\\)',
-    'singleton','factory','observer','strategy','builder pattern',
-    'final','static','abstract','interface','extends','implements',
+    'transaction isolation','propagation','rollback',
+    'Hibernate','lazy loading','eager loading',
+    'singleton pattern','factory pattern','observer pattern','builder pattern',
     'try-with-resources','checked exception','unchecked exception',
     'CompletableFuture','ExecutorService','ReentrantLock','CountDownLatch',
-    'Stream API','Optional','lambda','functional interface','Predicate','Consumer','Supplier',
+    'Stream API','functional interface',
     'idempotent','circuit breaker','load balancer','rate limiting','sharding','replication',
-    'index','B-tree','primary key','foreign key','JOIN','GROUP BY',
-    'JWT','OAuth2','CSRF','XSS','SQL injection','authentication','authorization',
-    'HLD','LLD','CAP theorem','eventual consistency','strong consistency',
-    'publish-subscribe','event-driven','saga pattern','CQRS','outbox pattern'
+    'primary key','foreign key',
+    'SQL injection','authentication','authorization',
+    'CAP theorem','eventual consistency','strong consistency',
+    'publish-subscribe','event-driven','saga pattern','outbox pattern'
   ];
-  // Only highlight in text nodes (not inside tags)
-  var re=new RegExp('(?<![<\\/\\w])\\b('+terms.join('|')+')\\b(?![^<]*>)','gi');
+  var re=new RegExp('(?<![<\\/\\w\\.\\d])('+terms.join('|')+')(?![\\w>])','gi');
   html=html.replace(re,function(m){return '<mark class="hl">'+m+'</mark>';});
   return html;
 }
@@ -353,7 +350,7 @@ function isDg(c){
 function dgBlk(c){return '<div class="code-wrap"><div class="code-bar"><span>diagram</span><button class="copy-btn">Copy</button></div><pre><code>'+esc(c)+'</code></pre></div>';}
 function rDiag(t,k){if(/```/.test(t))return rMd(t);return '<div class="code-wrap"><div class="code-bar"><span>'+(k||'diagram')+'</span><button class="copy-btn">Copy</button></div><pre><code>'+esc(String(t))+'</code></pre></div>';}
 var KW={};'abstract assert boolean break byte case catch char class continue default do double else enum extends final finally float for if implements import instanceof int interface long native new package private protected public return short static super switch synchronized this throw throws transient try void volatile while var record sealed true false null'.split(' ').forEach(function(k){KW[k]=1;});
-function hlC(c,l){var s=esc(c),st=[];function sh(cl,t){var tk='\x01'+st.length+'\x01';st.push('<span class="'+cl+'">'+t+'</span>');return tk;}var cu=!l||/^(java|js|ts|kotlin|go)$/.test(l);var ha=/^(bash|sh|yaml|yml|python|py)$/.test(l);if(cu){s=s.replace(/\/\*[\s\S]*?\*\//g,function(m){return sh('tk-cm',m);});s=s.replace(/\/\/[^\n]*/g,function(m){return sh('tk-cm',m);});}if(ha||l==='sql'){if(l==='sql')s=s.replace(/--[^\n]*/g,function(m){return sh('tk-cm',m);});s=s.replace(/#[^\n]*/g,function(m){return sh('tk-cm',m);});}s=s.replace(/"(?:\\.|[^"\\\n])*"/g,function(m){return sh('tk-str',m);});s=s.replace(/'(?:\\.|[^'\\\n])*'/g,function(m){return sh('tk-str',m);});s=s.replace(/@[A-Za-z_]\w*/g,function(m){return sh('tk-an',m);});s=s.replace(/\b\d[\d_.]*[fFdDlL]?\b/g,function(m){return sh('tk-num',m);});s=s.replace(/\b[A-Za-z_]\w*\b(\s*\()?/g,function(m,p){var w=p?m.slice(0,m.length-p.length).trim():m,tail=p||'';if(KW[w])return sh('tk-kw',w)+tail;if(tail)return sh('tk-fn',w)+tail;if(/^[A-Z]/.test(w))return sh('tk-ty',w);return m;});s=s.replace(/\x01(\d+)\x01/g,function(_,i){return st[+i];});return s;}
+function hlC(c,l){var s=esc(c),st=[];function sh(cl,t){var tk='\x01'+st.length+'\x01';st.push('<span class="'+cl+'">'+t+'</span>');return tk;}var cu=!l||/^(java|js|ts|kotlin|go)$/.test(l);var ha=/^(bash|sh|yaml|yml|python|py)$/.test(l);if(cu){s=s.replace(/\/\*[\s\S]*?\*\//g,function(m){return sh('tk-cm',m);});s=s.replace(/\/\/[^\n]*/g,function(m){return sh('tk-cm',m);});}if(ha||l==='sql'){if(l==='sql')s=s.replace(/--[^\n]*/g,function(m){return sh('tk-cm',m);});s=s.replace(/#[^\n]*/g,function(m){return sh('tk-cm',m);});}s=s.replace(/"(?:\\.|[^"\\\n])*"/g,function(m){return sh('tk-str',m);});s=s.replace(/'(?:\\.|[^'\\\n])*'/g,function(m){return sh('tk-str',m);});s=s.replace(/@[A-Za-z_]\w*/g,function(m){return sh('tk-an',m);});s=s.replace(/\b[A-Za-z_]\w*\b(\s*\()?/g,function(m,p){var w=p?m.slice(0,m.length-p.length).trim():m,tail=p||'';if(KW[w])return sh('tk-kw',w)+tail;if(tail)return sh('tk-fn',w)+tail;if(/^[A-Z]/.test(w))return sh('tk-ty',w);return m;});s=s.replace(/\x01(\d+)\x01/g,function(_,i){return st[+i];});return s;}
 function cpCode(btn){var wrap=btn.closest('.code-wrap');if(!wrap)return;var pre=wrap.querySelector('pre'),code=pre.querySelector('code'),text=code?code.innerText:pre.innerText;(navigator.clipboard?navigator.clipboard.writeText(text):Promise.reject()).then(function(){btn.textContent='Copied!';setTimeout(function(){btn.textContent='Copy';},1500);}).catch(function(){var ta=document.createElement('textarea');ta.value=text;ta.style.cssText='position:fixed;opacity:0';document.body.appendChild(ta);ta.select();document.execCommand('copy');document.body.removeChild(ta);btn.textContent='Copied!';setTimeout(function(){btn.textContent='Copy';},1500);});}
 
 // ===== SMART ANALYTICS =====
