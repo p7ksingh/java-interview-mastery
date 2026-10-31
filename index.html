@@ -41,7 +41,32 @@
 
   <script src="js/app.js"></script>
   <script>
-  (function(){var el=document.getElementById('visitorCount'),K='jim.vc',SK='jim.vt',A='https://api.countapi.xyz',N='java-interview-mastery',C='visitors';function s(n){el.textContent=n>=1000?(n/1000).toFixed(1)+'K':n;}if(!localStorage.getItem(K)){fetch(A+'/hit/'+N+'/'+C).then(function(r){return r.json()}).then(function(d){localStorage.setItem(K,'1');localStorage.setItem(SK,d.value);s(d.value);}).catch(function(){s(localStorage.getItem(SK)||1);});}else{fetch(A+'/get/'+N+'/'+C).then(function(r){return r.json()}).then(function(d){localStorage.setItem(SK,d.value);s(d.value);}).catch(function(){s(localStorage.getItem(SK)||'—');});}})();
+  (function(){
+    var el=document.getElementById('visitorCount');
+    // Use hits.dwyl.com — free, no signup, always works
+    var img = new Image();
+    img.onload = function(){};
+    img.src = 'https://hits.dwyl.com/p7ksingh/javabypankaj.svg';
+    
+    // Fetch the count from the badge API
+    fetch('https://hits.dwyl.com/p7ksingh/javabypankaj.json')
+      .then(function(r){ return r.json(); })
+      .then(function(d){
+        var count = d.count || d.message || 0;
+        el.textContent = count;
+      })
+      .catch(function(){
+        // Fallback: use localStorage counter
+        var key = 'jim.local.visits';
+        var n = parseInt(localStorage.getItem(key) || '0', 10);
+        if (!sessionStorage.getItem('jim.counted')) {
+          n++;
+          localStorage.setItem(key, String(n));
+          sessionStorage.setItem('jim.counted', '1');
+        }
+        el.textContent = n;
+      });
+  })();
   </script>
   <script data-goatcounter="https://java-interview-mastery.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
 </body>
