@@ -32,10 +32,7 @@ function nav(h){if(location.hash===h)route();else location.hash=h;}
 function goHome(){
   title.textContent='Interview Topics';
   acts.innerHTML='<span class="pill pill--blue">'+S.total.toLocaleString()+' Questions</span> <span class="pill pill--green">28 Chapters</span>';
-  var lastVisit=null;try{lastVisit=JSON.parse(localStorage.getItem('jim.lastVisit'));}catch(e){}
-  var html='';
-  if(lastVisit){html+='<div class="continue-card" data-go="'+lastVisit.hash+'"><div class="continue-card__info"><div class="continue-card__label">↩ Continue where you left off</div><div class="continue-card__title">'+esc(lastVisit.topicTitle)+'</div><div class="continue-card__sub">Chapter '+pad(lastVisit.ch)+': '+esc(lastVisit.chTitle)+'</div></div><div class="continue-card__btn">Continue →</div></div>';}
-  html+='<table class="tbl"><thead><tr>'+
+  var html='<table class="tbl"><thead><tr>'+
     '<th style="width:60px">#</th>'+
     '<th>CHAPTER</th>'+
     '<th style="width:120px">TOPICS</th>'+
@@ -118,8 +115,6 @@ function goCh(num){
 function goTopic(ch,ti){
   var m=findC(ch),g=findG(ch);if(!m||!g||ti>=g.topics.length)return goCh(ch);
   var topic=g.topics[ti];
-  // Save last visited for "Continue" feature
-  localStorage.setItem('jim.lastVisit',JSON.stringify({ch:ch,ti:ti,chTitle:m.chapterTitle,topicTitle:topic.title,hash:'#/chapter/'+ch+'/topic/'+ti}));
   title.innerHTML=crumb([['#/home','Home'],['#/chapter/'+ch,m.chapterTitle]])+esc(topic.title);
   acts.innerHTML='<span class="pill pill--dark">Topic '+(ti+1)+'/'+g.topics.length+'</span>'+
     (ti>0?' <button class="btn btn--sm btn--outline" data-go="#/chapter/'+ch+'/topic/'+(ti-1)+'">← Prev Topic</button>':'')+
@@ -134,8 +129,6 @@ function goTopic(ch,ti){
     var topicPct=tAns.length?Math.round(topicRevN/tAns.length*100):0;
     var topicBarColor=topicPct===0?'':'prog-fill--'+(topicPct>=100?'green':topicPct>=50?'orange':'red');
     var html='';
-    // Sticky back button
-    html+='<div class="sticky-back"><a class="sticky-back__btn" data-go="#/chapter/'+ch+'">← Back to '+esc(m.chapterTitle)+'</a></div>';
     // Topic progress
     html+='<div class="topic-progress"><div class="topic-progress__text">'+topicRevN+' of '+tAns.length+' completed ('+topicPct+'%)</div><div class="prog-bar prog-bar--lg"><div class="prog-fill '+topicBarColor+'" style="width:'+topicPct+'%"></div></div></div>';
     // Custom dropdown
@@ -294,10 +287,7 @@ function goSearch(q){
     var res=fuzzy(q,idx).slice(0,80);
     if(!res.length){body.innerHTML='<div class="empty"><div class="empty__icon">🔍</div><div class="empty__title">No results for "'+esc(q)+'"</div></div>';return;}
     var html='<p style="margin-bottom:12px;color:#999">'+res.length+' results for "'+esc(q)+'"</p><table class="tbl"><thead><tr><th style="width:80px">ID</th><th>QUESTION</th><th style="width:80px">CH</th></tr></thead><tbody>';
-    res.forEach(function(r){
-      var preview='Click to view full answer with code, diagrams, and examples';
-      html+='<tr data-go="#/q/'+r.id+'"><td><span class="pill pill--gray">'+esc(r.id)+'</span></td><td>'+hl(r.question,q)+'<div class="search-preview">'+preview+'</div></td><td>'+pad(r.chapter)+'</td></tr>';
-    });
+    res.forEach(function(r){html+='<tr data-go="#/q/'+r.id+'"><td><span class="pill pill--gray">'+esc(r.id)+'</span></td><td>'+hl(r.question,q)+'</td><td>'+pad(r.chapter)+'</td></tr>';});
     html+='</tbody></table>';
     body.innerHTML=html;
     bindC(body,'[data-go]',function(el){nav(el.dataset.go||el.closest('[data-go]').dataset.go);});
@@ -324,7 +314,7 @@ function loadIdx(){if(S.idx)return Promise.resolve(S.idx);return fetchJ(DIR+'sea
 function loadR(){try{var r=localStorage.getItem(LS);return new Set(r?JSON.parse(r):[]);}catch(e){return new Set();}}
 function saveR(){try{localStorage.setItem(LS,JSON.stringify(Array.from(S.rev)));}catch(e){}}
 function countR(ch){var d=S.cache[String(ch)];if(!d||!d.answers)return 0;var n=0;d.answers.forEach(function(a){if(S.rev.has(a.id))n++;});return n;}
-function showLoad(){body.innerHTML='<div style="background:var(--white);border-radius:10px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.06)"><div class="skeleton-row"><div class="skeleton skeleton-badge"></div><div class="skeleton skeleton-text"></div><div class="skeleton skeleton-text--med"></div></div><div class="skeleton-row"><div class="skeleton skeleton-badge"></div><div class="skeleton skeleton-text"></div><div class="skeleton skeleton-text--short"></div></div><div class="skeleton-row"><div class="skeleton skeleton-badge"></div><div class="skeleton skeleton-text"></div><div class="skeleton skeleton-text--med"></div></div><div class="skeleton-row"><div class="skeleton skeleton-badge"></div><div class="skeleton skeleton-text"></div><div class="skeleton skeleton-text--short"></div></div><div class="skeleton-row"><div class="skeleton skeleton-badge"></div><div class="skeleton skeleton-text"></div><div class="skeleton skeleton-text--med"></div></div></div>';}
+function showLoad(){body.innerHTML='<div class="loader"><div class="loader__spin"></div></div>';}
 function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 function pad(n){n=String(n);return n.length<2?'0'+n:n;}
 function bindC(c,s,fn){c.addEventListener('click',function(e){var n=e.target.closest(s);if(n&&c.contains(n))fn(n,e);});}
@@ -719,9 +709,6 @@ window.copyLink = function() {
     localStorage.setItem(LS_DARK,on?'1':'0');
     btn.textContent=on?'☀️':'🌙';
   };
-  // Mobile nav dark toggle
-  var mobDark=document.getElementById('mobDark');
-  if(mobDark)mobDark.onclick=function(){btn.click();};
 })();
 
 // ===== FEATURE 2: RANDOM QUESTION =====
