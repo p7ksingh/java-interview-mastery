@@ -147,7 +147,26 @@ button{font-family:var(--font);cursor:pointer;border:none;background:none;}
 .qnav-bottom{display:flex;align-items:center;justify-content:center;gap:16px;padding:16px 0;margin-top:8px;border-top:1px solid #e5e7eb;}
 .qnav-pos{font-size:13px;color:#999;min-width:60px;text-align:center;}
 .share-bottom{display:flex;justify-content:center;padding:12px 0 8px;}
-/* ===== REVIEW BUTTON ===== */
+/* ===== REVIEW CHECKBOX ===== */
+.rev-check{display:inline-flex;align-items:center;gap:8px;cursor:pointer;padding:6px 14px;border-radius:8px;transition:background 0.15s;user-select:none;}
+.rev-check:hover{background:#f0f0f0;}
+.rev-check__input{display:none;}
+.rev-check__box{width:22px;height:22px;border:2px solid #ccc;border-radius:6px;display:grid;place-items:center;transition:all 0.2s;flex-shrink:0;}
+.rev-check__box::after{content:'✓';font-size:14px;font-weight:700;color:#fff;opacity:0;transform:scale(0);transition:all 0.2s;}
+.rev-check__input:checked ~ .rev-check__box{background:#27ae60;border-color:#27ae60;}
+.rev-check__input:checked ~ .rev-check__box::after{opacity:1;transform:scale(1);}
+.rev-check__label{font-family:var(--font);font-size:13px;font-weight:600;color:#888;transition:color 0.2s;}
+.rev-check__input:checked ~ .rev-check__label{color:#27ae60;}
+.rev-check:hover .rev-check__box{border-color:#27ae60;}
+
+/* Dark mode checkbox */
+body.dark .rev-check:hover{background:#2a2a2a;}
+body.dark .rev-check__box{border-color:#555;}
+body.dark .rev-check:hover .rev-check__box{border-color:#27ae60;}
+body.dark .rev-check__label{color:#888;}
+body.dark .rev-check__input:checked ~ .rev-check__label{color:#81c784;}
+
+/* ===== REVIEW BUTTON (legacy — keep for compatibility) ===== */
 .rev-btn{
   display:inline-flex;align-items:center;gap:6px;
   font-family:var(--font);font-size:13px;font-weight:600;
@@ -390,6 +409,10 @@ table th{font-weight:700;background:#f8f8f8;}
 .prog-fill--green{background:#27ae60;}
 .prog-fill--orange{background:#f39c12;}
 .prog-fill--red{background:#e74c3c;}
+.prog-bar--lg{height:10px;border-radius:5px;}
+.topic-progress{margin-bottom:16px;padding:12px 16px;background:var(--white);border-radius:10px;box-shadow:0 1px 3px rgba(0,0,0,0.06);}
+.topic-progress__text{font-family:var(--font);font-size:13px;font-weight:600;color:#888;margin-bottom:8px;}
+body.dark .topic-progress{background:#1e1e1e;}
 
 /* ===== NOTES ===== */
 .notes-wrap{margin-top:20px;border-top:1px solid #e5e7eb;padding-top:16px;}

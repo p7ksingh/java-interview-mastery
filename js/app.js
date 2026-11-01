@@ -80,12 +80,14 @@ function goCh(num){
     '</tr></thead><tbody>';
   g.topics.forEach(function(t,i){
     var revN=0;t.ids.forEach(function(id){if(S.rev.has(id))revN++;});
+    var pct=t.count?Math.round(revN/t.count*100):0;
+    var barColor=pct===0?'':'prog-fill--'+(pct>=100?'green':pct>=50?'orange':'red');
     var statusPill=revN===0?'<span class="pill pill--gray">New</span>':
       revN===t.count?'<span class="pill pill--green">✓ Done</span>':
       '<span class="pill pill--orange">'+revN+'/'+t.count+'</span>';
     html+='<tr data-go="#/chapter/'+num+'/topic/'+i+'">'+
       '<td><span class="badge badge--num">'+(i+1)+'</span></td>'+
-      '<td>'+esc(t.title)+'</td>'+
+      '<td>'+esc(t.title)+'<div class="prog-bar"><div class="prog-fill '+barColor+'" style="width:'+pct+'%"></div></div></td>'+
       '<td>'+t.count+'</td>'+
       '<td><span class="pill pill--gray">'+t.ids[0]+(t.count>1?' – '+t.ids[t.count-1]:'')+'</span></td>'+
       '<td>'+statusPill+'</td></tr>';
@@ -102,7 +104,7 @@ function goCh(num){
       if(i<g.topics.length){
         var t=g.topics[i],td=tr.querySelectorAll('td')[1];
         var bad=(t.title.match(/&/g)||[]).length>=2||t.title.length<8;
-        if(bad&&map[t.ids[0]])td.innerHTML='<strong>'+esc(map[t.ids[0]])+'</strong>';
+        if(bad&&map[t.ids[0]]){var progBar=td.querySelector('.prog-bar');td.innerHTML='<strong>'+esc(map[t.ids[0]])+'</strong>';if(progBar)td.appendChild(progBar);}
       }
     });
   });
@@ -122,7 +124,13 @@ function goTopic(ch,ti){
     var ans=data.answers||[],idSet={};topic.ids.forEach(function(id){idSet[id]=1;});
     var tAns=ans.filter(function(a){return idSet[a.id];});
     var cur=0;
+    // Count completed in this topic
+    var topicRevN=0;tAns.forEach(function(a){if(S.rev.has(a.id))topicRevN++;});
+    var topicPct=tAns.length?Math.round(topicRevN/tAns.length*100):0;
+    var topicBarColor=topicPct===0?'':'prog-fill--'+(topicPct>=100?'green':topicPct>=50?'orange':'red');
     var html='';
+    // Topic progress
+    html+='<div class="topic-progress"><div class="topic-progress__text">'+topicRevN+' of '+tAns.length+' completed ('+topicPct+'%)</div><div class="prog-bar prog-bar--lg"><div class="prog-fill '+topicBarColor+'" style="width:'+topicPct+'%"></div></div></div>';
     // Custom dropdown
     html+='<div class="cdd" id="cdd">';
     html+='<button class="cdd__btn" id="cddBtn"><span class="cdd__btn-text" id="cddText">'+esc(tAns[0].id)+' — '+esc(tAns[0].question)+'</span><span class="cdd__arrow">▾</span></button>';
@@ -156,7 +164,7 @@ function goTopic(ch,ti){
       var h='<div class="qa-single">';
       h+='<div class="qa-single__id">'+esc(a.id)+' · Question '+(idx+1)+' of '+tAns.length+' <button class="bmark-btn'+(bm?' is-saved':'')+'" onclick="toggleBookmark(\''+a.id+'\',this)" title="'+(bm?'Remove bookmark':'Bookmark this question')+'">'+(bm?'❤️':'🤍')+'</button></div>';
       h+='<h2 class="qa-single__q">'+esc(a.question)+'</h2>';
-      h+='<button class="rev-btn '+(rev?'rev-btn--done':'')+'" id="revBtn" data-qid="'+a.id+'" title="'+(rev?'Click to unmark':'Click to mark as reviewed')+'">'+(rev?'✅ Reviewed':'📝 Mark as Reviewed')+'</button>';
+      h+='<label class="rev-check" title="'+(rev?'Unmark completed':'Mark as completed')+'"><input type="checkbox" class="rev-check__input" id="revBtn" data-qid="'+a.id+'"'+(rev?' checked':'')+'><span class="rev-check__box"></span><span class="rev-check__label">'+(rev?'Completed':'Mark as completed')+'</span></label>';
       h+='<div class="qa-single__body">'+renderOneAnswer(a)+'</div>';
       // Notes section
       var noteVal=getNote(a.id);
@@ -183,7 +191,7 @@ function goTopic(ch,ti){
     // Review
     body.addEventListener('click',function(e){
       var rb=e.target.closest('#revBtn');
-      if(rb){var id=rb.dataset.qid;if(S.rev.has(id))S.rev.delete(id);else S.rev.add(id);saveR();var on=S.rev.has(id);rb.className='rev-btn'+(on?' rev-btn--done':'');rb.textContent=on?'✅ Reviewed':'📝 Mark as Reviewed';rb.title=on?'Click to unmark':'Click to mark as reviewed';}
+      if(rb){var id=rb.dataset.qid;var on=rb.checked;if(on)S.rev.add(id);else S.rev.delete(id);saveR();var label=rb.closest('.rev-check');if(label){label.title=on?'Unmark completed':'Mark as completed';label.querySelector('.rev-check__label').textContent=on?'Completed':'Mark as completed';}}
       var cp=e.target.closest('.copy-btn');if(cp)cpCode(cp);
     });
     // Keyboard
@@ -215,7 +223,7 @@ function goQ(ch,ti,qi){
     var a=tAns[qi],rev=S.rev.has(a.id),sec=a.sections||{};
 
     title.innerHTML=crumb([['#/home','Home'],['#/chapter/'+ch,m.chapterTitle],['#/chapter/'+ch+'/topic/'+ti,topic.title]])+esc(a.id);
-    acts.innerHTML='<button class="rev-btn '+(rev?'rev-btn--done':'')+'" id="clapBtn" data-qid="'+a.id+'" title="'+(rev?'Click to unmark':'Click to mark as reviewed')+'">'+(rev?'✅ Reviewed':'📝 Mark as Reviewed')+'</button>';
+    acts.innerHTML='<label class="rev-check" title="'+(rev?'Unmark completed':'Mark as completed')+'"><input type="checkbox" class="rev-check__input" id="clapBtn" data-qid="'+a.id+'"'+(rev?' checked':'')+'><span class="rev-check__box"></span><span class="rev-check__label">'+(rev?'Completed':'Mark as completed')+'</span></label>';
 
     var html='<div class="article">';
     html+='<div class="article__id">'+esc(a.id)+' · Chapter '+pad(ch)+' · '+esc(m.chapterTitle)+' · Topic: '+esc(topic.title)+'</div>';
@@ -249,7 +257,7 @@ function goQ(ch,ti,qi){
     html+='</div>';
     body.innerHTML=html;
 
-    $('clapBtn').onclick=function(){var id=this.dataset.qid;if(S.rev.has(id))S.rev.delete(id);else S.rev.add(id);saveR();var on=S.rev.has(id);this.className='rev-btn'+(on?' rev-btn--done':'');this.textContent=on?'✅ Reviewed':'📝 Mark as Reviewed';this.title=on?'Click to unmark':'Click to mark as reviewed';};
+    $('clapBtn').onclick=function(){var id=this.dataset.qid;var on=this.checked;if(on)S.rev.add(id);else S.rev.delete(id);saveR();var label=this.closest('.rev-check');if(label){label.title=on?'Unmark completed':'Mark as completed';label.querySelector('.rev-check__label').textContent=on?'Completed':'Mark as completed';}};
     bindC(body,'.copy-btn',function(b){cpCode(b);});
     bindC(acts,'[data-go]',function(el){nav(el.dataset.go);});
 
