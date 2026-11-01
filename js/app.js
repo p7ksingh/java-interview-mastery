@@ -5,7 +5,7 @@ var DIR='data/',LS='jim.reviewed';
 var S={ch:[],grp:null,total:0,idx:null,cache:{},rev:loadR()};
 var $=function(id){return document.getElementById(id);};
 var body=$('pageBody'),title=$('pageTitle'),acts=$('pageActions'),qnav=$('qnav');
-var prevBtn=$('prevBtn'),nextBtn=$('nextBtn'),qnavPos=$('qnavPos'),searchIn=$('searchInput');
+var searchIn=$('searchInput');
 
 document.addEventListener('DOMContentLoaded',function(){
   wire();
@@ -17,7 +17,7 @@ window.addEventListener('hashchange',route);
 
 function route(){
   var h=location.hash.replace(/^#\/?/,''),p=h.split('/').filter(Boolean);
-  qnav.hidden=true;
+  
   if(!p.length||p[0]==='home')return goHome();
   if(p[0]==='chapter'&&p.length===2)return goCh(+p[1]);
   if(p[0]==='chapter'&&p.length===4&&p[2]==='topic')return goTopic(+p[1],+p[3]);
@@ -30,7 +30,7 @@ function nav(h){if(location.hash===h)route();else location.hash=h;}
 
 // ===== HOME — Chapter table =====
 function goHome(){
-  title.textContent='Interview Topics';
+  title.textContent='Interview Topics';setNav([]);
   acts.innerHTML='<span class="pill pill--blue">'+S.total.toLocaleString()+' Questions</span> <span class="pill pill--green">28 Chapters</span>';
   var html='<table class="tbl"><thead><tr>'+
     '<th style="width:60px">#</th>'+
@@ -68,7 +68,7 @@ function goHome(){
 // ===== CHAPTER — Topic table =====
 function goCh(num){
   var m=findC(num),g=findG(num);if(!m||!g)return goHome();
-  title.innerHTML=crumb([['#/home','Home']])+esc(m.chapterTitle);
+  title.textContent=m.chapterTitle;setNav([{label:'🏠 Home',link:'#/home'},{label:m.chapterTitle}]);
   acts.innerHTML='<span class="pill pill--dark">Ch '+pad(num)+'</span> <span class="pill pill--blue">'+g.topics.length+' Topics</span> <span class="pill pill--gray">'+m.count+' Qs</span>';
 
   var html='<table class="tbl"><thead><tr>'+
@@ -115,7 +115,7 @@ function goCh(num){
 function goTopic(ch,ti){
   var m=findC(ch),g=findG(ch);if(!m||!g||ti>=g.topics.length)return goCh(ch);
   var topic=g.topics[ti];
-  title.innerHTML=crumb([['#/home','Home'],['#/chapter/'+ch,m.chapterTitle]])+esc(topic.title);
+  title.textContent=topic.title;setNav([{label:'🏠 Home',link:'#/home'},{label:m.chapterTitle,link:'#/chapter/'+ch},{label:topic.title}]);
   acts.innerHTML='<span class="pill pill--dark">Topic '+(ti+1)+'/'+g.topics.length+'</span>'+
     (ti>0?' <button class="btn btn--sm btn--outline" data-go="#/chapter/'+ch+'/topic/'+(ti-1)+'">← Prev Topic</button>':'')+
     (ti<g.topics.length-1?' <button class="btn btn--sm btn--primary" data-go="#/chapter/'+ch+'/topic/'+(ti+1)+'">Next Topic →</button>':'');
@@ -145,11 +145,18 @@ function goTopic(ch,ti){
       html+='</div>';
     });
     html+='</div></div>';
+    // Question tabs — horizontal scrollable
+    html+='<div class="qtabs-wrap"><div class="qtabs" id="qTabs">';
+    tAns.forEach(function(a,qi){
+      var rev=S.rev.has(a.id);
+      html+='<button class="qtab'+(qi===0?' qtab--active':'')+(rev?' qtab--done':'')+'" data-qi="'+qi+'" title="'+esc(a.question.slice(0,80))+'">'+esc(a.id)+(rev?' ✓':'')+'</button>';
+    });
+    html+='</div></div>';
     // Answer
     html+='<div id="qAnswer"></div>';
     // Nav
-    html+='<div class="qnav-bottom"><button class="btn btn--sm btn--outline" id="qP">← Previous</button><span class="qnav-pos" id="qPos">1 / '+tAns.length+'</span><button class="btn btn--sm btn--primary" id="qN">Next →</button></div>';
-    html+='<div class="share-bottom" id="shareBottom"></div>';
+
+
     body.innerHTML=html;
     function show(idx){
       if(idx<0||idx>=tAns.length)return;cur=idx;var a=tAns[idx],rev=S.rev.has(a.id);
@@ -157,6 +164,10 @@ function goTopic(ch,ti){
       document.getElementById('cddText').textContent=a.id+' — '+a.question;
       // Update active item
       body.querySelectorAll('.cdd__item').forEach(function(it,i){it.classList.toggle('cdd__item--active',i===idx);});
+      // Update tabs
+      body.querySelectorAll('.qtab').forEach(function(t,i){t.classList.toggle('qtab--active',i===idx);});
+      // Scroll active tab into view
+      var activeTab=body.querySelector('.qtab--active');if(activeTab)activeTab.scrollIntoView({behavior:'smooth',block:'nearest',inline:'center'});
       // Close dropdown
       document.getElementById('cddList').hidden=true;
       // Render answer
@@ -173,27 +184,26 @@ function goTopic(ch,ti){
       h+='<div class="notes-saved">✓ Saved</div></div>';
       h+='</div>';
       document.getElementById('qAnswer').innerHTML=h;
-      document.getElementById('qP').disabled=idx===0;
-      document.getElementById('qN').disabled=idx===tAns.length-1;
-      document.getElementById('qPos').textContent=(idx+1)+' / '+tAns.length;
-      document.getElementById('shareBottom').innerHTML=shareBar(a.question,'https://www.javabypankaj.live/#/q/'+a.id);
     }
     show(0);
     // Toggle dropdown
     document.getElementById('cddBtn').onclick=function(e){e.stopPropagation();var dl=document.getElementById('cddList');dl.hidden=!dl.hidden;};
-    // Click item
-    bindC(body,'.cdd__item',function(it){show(parseInt(it.dataset.qi,10));});
-    // Click outside closes
-    document.addEventListener('click',function(e){var dd=document.getElementById('cdd'),dl=document.getElementById('cddList');if(dl&&!dl.hidden&&dd&&!dd.contains(e.target))dl.hidden=true;});
-    // Nav buttons
-    document.getElementById('qP').onclick=function(){show(cur-1);window.scrollTo({top:0,behavior:'smooth'});};
-    document.getElementById('qN').onclick=function(){show(cur+1);window.scrollTo({top:0,behavior:'smooth'});};
-    // Review
-    body.addEventListener('click',function(e){
+    // All button clicks — single handler, no stacking
+    var qPBtn=document.getElementById('qP');
+    var qNBtn=document.getElementById('qN');
+    body.onclick=function(e){
+      // Tab clicks
+      var tab=e.target.closest('.qtab');if(tab){show(parseInt(tab.dataset.qi,10));return;}
+      // Dropdown items
+      var cItem=e.target.closest('.cdd__item');if(cItem){show(parseInt(cItem.dataset.qi,10));return;}
+      // Review checkbox
       var rb=e.target.closest('#revBtn');
-      if(rb){var id=rb.dataset.qid;var on=rb.checked;if(on)S.rev.add(id);else S.rev.delete(id);saveR();var label=rb.closest('.rev-check');if(label){label.title=on?'Unmark completed':'Mark as completed';label.querySelector('.rev-check__label').textContent=on?'Completed':'Mark as completed';}}
-      var cp=e.target.closest('.copy-btn');if(cp)cpCode(cp);
-    });
+      if(rb){var id=rb.dataset.qid;var on=rb.checked;if(on)S.rev.add(id);else S.rev.delete(id);saveR();var label=rb.closest('.rev-check');if(label){label.title=on?'Unmark completed':'Mark as completed';label.querySelector('.rev-check__label').textContent=on?'Completed':'Mark as completed';}return;}
+      // Copy button
+      var cp=e.target.closest('.copy-btn');if(cp){cpCode(cp);return;}
+      // Any data-go link (breadcrumbs, back buttons etc)
+      var goLink=e.target.closest('[data-go]');if(goLink){nav(goLink.dataset.go);return;}
+    };
     // Keyboard
     var _kh=function(e){if(document.activeElement.tagName==='INPUT'||document.activeElement.tagName==='SELECT')return;if(e.key==='ArrowLeft'&&cur>0){e.preventDefault();show(cur-1);window.scrollTo({top:0,behavior:'smooth'});}if(e.key==='ArrowRight'&&cur<tAns.length-1){e.preventDefault();show(cur+1);window.scrollTo({top:0,behavior:'smooth'});}};
     document.addEventListener('keydown',_kh);window.addEventListener('hashchange',function(){document.removeEventListener('keydown',_kh);},{once:true});
@@ -222,7 +232,7 @@ function goQ(ch,ti,qi){
     if(qi<0||qi>=tAns.length)return goTopic(ch,ti);
     var a=tAns[qi],rev=S.rev.has(a.id),sec=a.sections||{};
 
-    title.innerHTML=crumb([['#/home','Home'],['#/chapter/'+ch,m.chapterTitle],['#/chapter/'+ch+'/topic/'+ti,topic.title]])+esc(a.id);
+    title.textContent=a.id;setNav([{label:'🏠 Home',link:'#/home'},{label:m.chapterTitle,link:'#/chapter/'+ch},{label:topic.title,link:'#/chapter/'+ch+'/topic/'+ti},{label:a.id}]);
     acts.innerHTML='<label class="rev-check" title="'+(rev?'Unmark completed':'Mark as completed')+'"><input type="checkbox" class="rev-check__input" id="clapBtn" data-qid="'+a.id+'"'+(rev?' checked':'')+'><span class="rev-check__box"></span><span class="rev-check__label">'+(rev?'Completed':'Mark as completed')+'</span></label>';
 
     var html='<div class="article">';
@@ -261,7 +271,7 @@ function goQ(ch,ti,qi){
     bindC(body,'.copy-btn',function(b){cpCode(b);});
     bindC(acts,'[data-go]',function(el){nav(el.dataset.go);});
 
-    qnav.hidden=false;
+    
     prevBtn.disabled=qi===0;nextBtn.disabled=qi===tAns.length-1;
     qnavPos.textContent=(qi+1)+' / '+tAns.length;
     prevBtn.onclick=function(){if(qi>0)nav('#/chapter/'+ch+'/'+ti+'/'+(qi-1));};
@@ -281,7 +291,7 @@ function goById(id){
 
 function goSearch(q){
   if(!q||!q.trim())return goHome();
-  title.innerHTML=crumb([['#/home','Home']])+'Search Results';
+  title.textContent='Search Results';setNav([{label:'🏠 Home',link:'#/home'},{label:'Search Results'}]);
   acts.innerHTML='';showLoad();
   loadIdx().then(function(idx){
     var res=fuzzy(q,idx).slice(0,80);
@@ -295,6 +305,24 @@ function goSearch(q){
 }
 
 // ===== Helpers =====
+
+// Consistent navigation bar
+function setNav(items){
+  var nb=document.getElementById('navBar');
+  if(!nb)return;
+  if(!items||!items.length){nb.innerHTML='';return;}
+  var h='<div class="nav-trail">';
+  items.forEach(function(item,i){
+    if(item.link){
+      h+='<a class="nav-trail__link" data-go="'+item.link+'">'+item.label+'</a>';
+    }else{
+      h+='<span class="nav-trail__current">'+item.label+'</span>';
+    }
+    if(i<items.length-1)h+='<span class="nav-trail__sep">›</span>';
+  });
+  h+='</div>';
+  nb.innerHTML=h;
+}
 function crumb(items){return '<span class="crumb">'+items.map(function(i){return '<a data-go="'+i[0]+'">'+esc(i[1])+'</a>';}).join(' <span>›</span> ')+' › </span>';}
 function wire(){
   searchIn.addEventListener('input',debounce(function(){var q=searchIn.value.trim();if(q)nav('#/search/'+encodeURIComponent(q));else nav('#/home');},250));

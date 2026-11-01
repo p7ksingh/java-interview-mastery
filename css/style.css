@@ -663,3 +663,39 @@ body.dark .community-card__topic{background:#1a1a2e;color:#8ab4f8;}
 @media(max-width:768px){
   .form-row{flex-direction:column;gap:8px;}
 }
+
+/* ===== QUESTION TABS (horizontal scrollable) ===== */
+.qtabs-wrap{margin:12px 0;position:sticky;top:48px;z-index:20;background:var(--bg);padding:6px 0;}
+.qtabs{display:flex;gap:6px;overflow-x:auto;padding:4px 0;-webkit-overflow-scrolling:touch;scrollbar-width:none;}
+.qtabs::-webkit-scrollbar{display:none;}
+.qtab{flex-shrink:0;padding:8px 16px;border-radius:20px;border:1.5px solid #e0e0e0;background:#fff;font-family:var(--font);font-size:13px;font-weight:600;color:#666;cursor:pointer;transition:all 0.2s;white-space:nowrap;}
+.qtab:hover{border-color:#FF0000;color:#FF0000;background:#fff5f5;}
+.qtab--active{background:#FF0000;color:#fff;border-color:#FF0000;}
+.qtab--active:hover{background:#cc0000;}
+.qtab--done{border-color:#27ae60;color:#27ae60;}
+.qtab--done.qtab--active{background:#27ae60;border-color:#27ae60;color:#fff;}
+body.dark .qtabs-wrap{background:#121212;}
+body.dark .qtab{background:#1e1e1e;border-color:#333;color:#888;}
+body.dark .qtab:hover{border-color:#FF0000;color:#FF0000;background:#251010;}
+body.dark .qtab--active{background:#FF0000;color:#fff;}
+body.dark .qtab--done{border-color:#4caf50;color:#81c784;}
+body.dark .qtab--done.qtab--active{background:#27ae60;}
+
+/* ===== BACK LINK ===== */
+.back-link{display:inline-block;font-family:var(--font);font-size:14px;font-weight:600;color:#4A90D9;text-decoration:none;margin-bottom:12px;padding:6px 0;transition:color 0.15s;cursor:pointer;}
+.back-link:hover{color:#FF0000;}
+body.dark .back-link{color:#8ab4f8;}
+body.dark .back-link:hover{color:#FF0000;}
+
+/* ===== CONSISTENT NAV BAR ===== */
+.nav-bar{margin-bottom:8px;}
+.nav-trail{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:10px 0;border-bottom:1px solid #e5e7eb;}
+.nav-trail__link{font-family:var(--font);font-size:14px;font-weight:600;color:#4A90D9;text-decoration:none;cursor:pointer;padding:4px 8px;border-radius:6px;transition:all 0.15s;}
+.nav-trail__link:hover{background:#f0f6ff;color:#FF0000;}
+.nav-trail__current{font-family:var(--font);font-size:14px;font-weight:700;color:var(--dark);padding:4px 8px;}
+.nav-trail__sep{color:#ccc;font-size:14px;}
+body.dark .nav-trail{border-bottom-color:#333;}
+body.dark .nav-trail__link{color:#8ab4f8;}
+body.dark .nav-trail__link:hover{background:#1a2a3a;color:#FF0000;}
+body.dark .nav-trail__current{color:#e8e8e8;}
+body.dark .nav-trail__sep{color:#555;}
