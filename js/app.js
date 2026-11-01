@@ -39,6 +39,15 @@ function goHome(){
     '<th style="width:120px">QUESTIONS</th>'+
     '<th style="width:120px">STATUS</th>'+
     '</tr></thead><tbody>';
+  // Continue where you left off — first row
+  var lastVisit=null;try{lastVisit=JSON.parse(localStorage.getItem('jim.lastVisit'));}catch(e){}
+  if(lastVisit){
+    html+='<tr class="continue-row" data-go="'+lastVisit.hash+'">'+
+      '<td><span class="continue-row__icon">↩</span></td>'+
+      '<td colspan="2"><span class="continue-row__label">Continue where you left off</span><br><strong class="continue-row__topic">'+esc(lastVisit.topicTitle)+'</strong><span class="continue-row__ch"> · Ch '+pad(lastVisit.ch)+': '+esc(lastVisit.chTitle)+'</span></td>'+
+      '<td></td>'+
+      '<td><span class="pill pill--blue">Resume →</span></td></tr>';
+  }
   S.ch.forEach(function(c){
     var g=findG(c.chapter),tc=g?g.topics.length:0;
     var revN=countR(c.chapter),done=revN===c.count;
@@ -116,6 +125,8 @@ function goTopic(ch,ti){
   var m=findC(ch),g=findG(ch);if(!m||!g||ti>=g.topics.length)return goCh(ch);
   var topic=g.topics[ti];
   title.textContent=topic.title;setNav([{label:'🏠 Home',link:'#/home'},{label:m.chapterTitle,link:'#/chapter/'+ch},{label:topic.title}]);
+  // Save for "Continue where you left off"
+  localStorage.setItem('jim.lastVisit',JSON.stringify({ch:ch,ti:ti,chTitle:m.chapterTitle,topicTitle:topic.title,hash:'#/chapter/'+ch+'/topic/'+ti}));
   acts.innerHTML='<span class="pill pill--dark">Topic '+(ti+1)+'/'+g.topics.length+'</span>'+
     (ti>0?' <button class="btn btn--sm btn--outline" data-go="#/chapter/'+ch+'/topic/'+(ti-1)+'">← Prev Topic</button>':'')+
     (ti<g.topics.length-1?' <button class="btn btn--sm btn--primary" data-go="#/chapter/'+ch+'/topic/'+(ti+1)+'">Next Topic →</button>':'');

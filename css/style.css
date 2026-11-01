@@ -699,3 +699,14 @@ body.dark .nav-trail__link{color:#8ab4f8;}
 body.dark .nav-trail__link:hover{background:#1a2a3a;color:#FF0000;}
 body.dark .nav-trail__current{color:#e8e8e8;}
 body.dark .nav-trail__sep{color:#555;}
+
+/* ===== CONTINUE ROW ===== */
+.continue-row{background:#f8fafe !important;border-left:3px solid #4A90D9;}
+.continue-row:hover{background:#f0f5ff !important;}
+.continue-row__icon{font-size:18px;color:#4A90D9;}
+.continue-row__label{font-size:11px;font-weight:600;color:#4A90D9;text-transform:uppercase;letter-spacing:0.5px;}
+.continue-row__topic{font-size:15px;color:var(--dark);}
+.continue-row__ch{font-size:13px;color:#999;font-weight:400;}
+body.dark .continue-row{background:#1a2030 !important;}
+body.dark .continue-row:hover{background:#1e2840 !important;}
+body.dark .continue-row__topic{color:#e0e0e0;}
