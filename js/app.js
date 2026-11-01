@@ -353,7 +353,7 @@ function loadIdx(){if(S.idx)return Promise.resolve(S.idx);return fetchJ(DIR+'sea
 function loadR(){try{var r=localStorage.getItem(LS);return new Set(r?JSON.parse(r):[]);}catch(e){return new Set();}}
 function saveR(){try{localStorage.setItem(LS,JSON.stringify(Array.from(S.rev)));}catch(e){}}
 function countR(ch){var d=S.cache[String(ch)];if(!d||!d.answers)return 0;var n=0;d.answers.forEach(function(a){if(S.rev.has(a.id))n++;});return n;}
-function showLoad(){body.innerHTML='<div class="loader"><div class="loader__spin"></div></div>';}
+function showLoad(){body.innerHTML='<div class="skel"><div class="skel__row"><div class="skel__circle"></div><div class="skel__lines"><div class="skel__line skel__line--long"></div><div class="skel__line skel__line--short"></div></div></div><div class="skel__row"><div class="skel__circle"></div><div class="skel__lines"><div class="skel__line skel__line--long"></div><div class="skel__line skel__line--med"></div></div></div><div class="skel__row"><div class="skel__circle"></div><div class="skel__lines"><div class="skel__line skel__line--med"></div><div class="skel__line skel__line--short"></div></div></div><div class="skel__row"><div class="skel__circle"></div><div class="skel__lines"><div class="skel__line skel__line--long"></div><div class="skel__line skel__line--short"></div></div></div></div>';}
 function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 function pad(n){n=String(n);return n.length<2?'0'+n:n;}
 function bindC(c,s,fn){c.addEventListener('click',function(e){var n=e.target.closest(s);if(n&&c.contains(n))fn(n,e);});}
