@@ -52,12 +52,7 @@
         <input type="search" id="searchInput" placeholder="Search questions..." autocomplete="off" spellcheck="false">
         <kbd>⌘K</kbd>
       </div>
-      <div class="topbar__live" id="liveCounter" title="People reading right now">
-        <span class="live-dot"></span>
-        <span id="liveCount">0</span> reading now
-      </div>
       <button class="topbar__icon" id="darkToggle" title="Toggle dark mode">🌙</button>
-      <div class="topbar__visitor" id="visitorCounter">👁 <span id="visitorCount">—</span></div>
     </div>
   </nav>
 
@@ -157,23 +152,6 @@
   </footer>
 
   <script src="js/app.js"></script>
-  <script>
-  (function(){
-    var el = document.getElementById('visitorCount');
-    var key = 'jim.vcount';
-    var n = parseInt(localStorage.getItem(key) || '0', 10);
-    if (!sessionStorage.getItem('jim.vc')) {
-      n++;
-      localStorage.setItem(key, String(n));
-      sessionStorage.setItem('jim.vc', '1');
-    }
-    el.textContent = n;
-
-    // Live counter — just show 1 (you are reading)
-    var liveEl = document.getElementById('liveCount');
-    if (liveEl) liveEl.textContent = '1';
-  })();
-  </script>
   <script data-goatcounter="https://java-interview-mastery.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
 </body>
 </html>
