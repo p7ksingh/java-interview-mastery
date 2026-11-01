@@ -65,7 +65,6 @@ function goHome(){
   });
   html+='</tbody></table>';
   // Submit question button + community section
-  html+='<div style="margin-top:24px;text-align:center"><button class="submit-btn-home" onclick="openSubmitForm()">💡 Submit Your Interview Question</button></div>';
   html+='<div id="communitySection" style="margin-top:32px"></div>';
   body.innerHTML=html;
   bindC(body,'[data-go]',function(el){nav(el.dataset.go||el.closest('[data-go]').dataset.go);});
