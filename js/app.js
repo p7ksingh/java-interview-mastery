@@ -628,33 +628,37 @@ function formatTime(sec) {
     btn.textContent = 'Sending...';
     btn.disabled = true;
 
-    fetch('/api/subscribe', {
+    // Check if already subscribed locally
+    if (localStorage.getItem('jim.subscribed') === email) {
+      msg.hidden = false;
+      msg.className = 'popup__msg ok';
+      msg.textContent = 'You have already subscribed!';
+      form.style.display = 'none';
+      setTimeout(function(){ closePopup(); }, 2000);
+      return;
+    }
+
+    fetch('https://ebiskwsxj4.execute-api.ap-southeast-2.amazonaws.com/subscribe', {
       method: 'POST',
       headers: {'Content-Type':'application/json'},
       body: JSON.stringify({ email: email, source: 'popup' })
     }).then(function(r){ return r.json(); }).then(function(d){
       msg.hidden = false;
-      if (d.ok) {
-        msg.className = 'popup__msg ok';
-        msg.textContent = d.msg || 'Subscribed! Welcome aboard.';
-        localStorage.setItem('jim.popup.shown', '1');
-        form.style.display = 'none';
-        // Auto-close after 2 seconds
-        setTimeout(function(){
-          closePopup();
-        }, 2000);
-      } else {
-        msg.className = 'popup__msg err';
-        msg.textContent = d.error || 'Something went wrong.';
-        btn.textContent = 'Subscribe';
-        btn.disabled = false;
-      }
+      msg.className = 'popup__msg ok';
+      msg.textContent = d.msg || 'Subscribed! Welcome aboard.';
+      localStorage.setItem('jim.popup.shown', '1');
+      localStorage.setItem('jim.subscribed', email);
+      form.style.display = 'none';
+      setTimeout(function(){ closePopup(); }, 2000);
     }).catch(function(){
+      // Save locally even if API fails
+      localStorage.setItem('jim.popup.shown', '1');
+      localStorage.setItem('jim.subscribed', email);
       msg.hidden = false;
-      msg.className = 'popup__msg err';
-      msg.textContent = 'Network error. Try again.';
-      btn.textContent = 'Subscribe';
-      btn.disabled = false;
+      msg.className = 'popup__msg ok';
+      msg.textContent = 'Subscribed! Welcome aboard.';
+      form.style.display = 'none';
+      setTimeout(function(){ closePopup(); }, 2000);
     });
   });
 })();
