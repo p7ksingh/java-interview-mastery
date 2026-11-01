@@ -163,7 +163,7 @@ function goTopic(ch,ti){
       document.getElementById('qP').disabled=idx===0;
       document.getElementById('qN').disabled=idx===tAns.length-1;
       document.getElementById('qPos').textContent=(idx+1)+' / '+tAns.length;
-      document.getElementById('shareBottom').innerHTML=shareBar(a.question,'https://javabypankaj.netlify.app/#/q/'+a.id);
+      document.getElementById('shareBottom').innerHTML=shareBar(a.question,'https://www.javabypankaj.live/#/q/'+a.id);
     }
     show(0);
     // Toggle dropdown
@@ -661,7 +661,7 @@ function formatTime(sec) {
 
 // ===== SHARE BUTTONS =====
 function shareBar(pageTitle, pageUrl) {
-  if (!pageUrl) pageUrl = 'https://javabypankaj.netlify.app/';
+  if (!pageUrl) pageUrl = 'https://www.javabypankaj.live/';
   if (!pageTitle) pageTitle = 'Java Interview Mastery — 2,506 Questions';
   var encodedUrl = encodeURIComponent(pageUrl);
   var encodedTitle = encodeURIComponent(pageTitle);
@@ -676,7 +676,7 @@ function shareBar(pageTitle, pageUrl) {
 }
 
 window.copyLink = function() {
-  var url = 'https://javabypankaj.netlify.app/' + (location.hash || '');
+  var url = 'https://www.javabypankaj.live/' + (location.hash || '');
   (navigator.clipboard ? navigator.clipboard.writeText(url) : Promise.reject()).then(function(){
     alert('Link copied!');
   }).catch(function(){
