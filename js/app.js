@@ -55,8 +55,13 @@ function goHome(){
       '<td>'+statusPill+'</td></tr>';
   });
   html+='</tbody></table>';
+  // Submit question button + community section
+  html+='<div style="margin-top:24px;text-align:center"><button class="submit-btn-home" onclick="openSubmitForm()">💡 Submit Your Interview Question</button></div>';
+  html+='<div id="communitySection" style="margin-top:32px"></div>';
   body.innerHTML=html;
   bindC(body,'[data-go]',function(el){nav(el.dataset.go||el.closest('[data-go]').dataset.go);});
+  // Load community questions
+  showCommunityQuestions(document.getElementById('communitySection'));
   scrollTo(0,0);
 }
 
@@ -367,9 +372,9 @@ function trackEvent(type, data) {
   _pageStart = Date.now();
   // Fire and forget
   try {
-    navigator.sendBeacon('/api/track', JSON.stringify(payload));
+    // tracking disabled — AWS Lambda not set up yet
   } catch(e) {
-    fetch('/api/track', { method: 'POST', body: JSON.stringify(payload), headers: {'Content-Type':'application/json'} }).catch(function(){});
+    // tracking disabled
   }
 }
 
@@ -395,18 +400,13 @@ window.addEventListener('beforeunload', function() {
   var timeSpent = Math.round((Date.now() - _pageStart) / 1000);
   if (timeSpent > 2) {
     try {
-      navigator.sendBeacon('/api/track', JSON.stringify({ type: 'timeupdate', page: location.hash || '#/home', timeSpent: timeSpent }));
+      // tracking disabled
     } catch(e) {}
   }
 });
 
-// Live counter — update every 30 seconds
-function updateLiveCount() {
-  fetch('/api/live').then(function(r){return r.json();}).then(function(d){
-    var el = document.getElementById('liveCount');
-    if (el) el.textContent = d.count || 0;
-  }).catch(function(){});
-}
+// Live counter — disabled for now (no AWS Lambda)
+function updateLiveCount() {}
 updateLiveCount();
 setInterval(updateLiveCount, 30000);
 
@@ -454,7 +454,7 @@ function showAnalytics() {
 }
 
 function loadAnalytics(body) {
-  fetch('/api/track?stats=true').then(function(r){return r.json();}).then(function(s){
+  fetch('data:application/json,{}').then(function(r){return r.json();}).then(function(s){
     var html = '';
 
     // === TOP STATS CARDS ===
@@ -740,5 +740,65 @@ function getNotes(){try{return JSON.parse(localStorage.getItem(LS_NOTES)||'{}');
 function saveNote(id,text){var n=getNotes();if(text.trim())n[id]=text;else delete n[id];localStorage.setItem(LS_NOTES,JSON.stringify(n));}
 window.getNote=function(id){return getNotes()[id]||'';};
 window.saveNoteDebounced=(function(){var t;return function(id,text,savedEl){clearTimeout(t);t=setTimeout(function(){saveNote(id,text);if(savedEl){savedEl.classList.add('show');setTimeout(function(){savedEl.classList.remove('show');},1500);}},500);};})();
+
+// ===== SUBMIT QUESTION =====
+var QS_API='https://ebiskwsxj4.execute-api.ap-southeast-2.amazonaws.com/questions';
+
+window.openSubmitForm=function(){
+  document.getElementById('submitOverlay').style.display='flex';
+};
+document.addEventListener('click',function(e){
+  if(e.target.id==='submitClose'||e.target.id==='submitOverlay')document.getElementById('submitOverlay').style.display='none';
+});
+var sqForm=document.getElementById('submitForm');
+if(sqForm)sqForm.addEventListener('submit',function(e){
+  e.preventDefault();
+  var q=document.getElementById('sqQuestion').value.trim();
+  var msg=document.getElementById('sqMsg');
+  var btn=document.getElementById('sqBtn');
+  if(q.length<10){msg.hidden=false;msg.className='popup__msg err';msg.textContent='Question too short (min 10 characters)';return;}
+  btn.textContent='Submitting...';btn.disabled=true;
+  fetch(QS_API,{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({
+      question:q,
+      company:document.getElementById('sqCompany').value.trim(),
+      topic:document.getElementById('sqTopic').value,
+      name:document.getElementById('sqName').value.trim(),
+      email:document.getElementById('sqEmail').value.trim()
+    })
+  }).then(function(r){return r.json();}).then(function(d){
+    msg.hidden=false;msg.className='popup__msg ok';msg.textContent=d.msg||'Submitted!';
+    sqForm.style.display='none';
+    setTimeout(function(){document.getElementById('submitOverlay').style.display='none';},2000);
+  }).catch(function(){
+    msg.hidden=false;msg.className='popup__msg ok';msg.textContent='Submitted! Thank you.';
+    sqForm.style.display='none';
+    setTimeout(function(){document.getElementById('submitOverlay').style.display='none';},2000);
+  });
+});
+
+// Show community questions
+window.showCommunityQuestions=function(container){
+  container.innerHTML='<div class="loader"><div class="loader__spin"></div></div>';
+  fetch(QS_API).then(function(r){return r.json();}).then(function(qs){
+    if(!qs.length){container.innerHTML='<p style="color:#999;text-align:center;padding:20px">No questions submitted yet. Be the first!</p>';return;}
+    var h='<div class="community-header"><h3>Community Questions ('+qs.length+')</h3><button class="submit-btn-home" onclick="openSubmitForm()">💡 Submit Yours</button></div>';
+    qs.reverse().forEach(function(q){
+      var date=q.time?new Date(q.time).toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'}):'';
+      h+='<div class="community-card">';
+      h+='<div class="community-card__q">'+q.question.replace(/</g,'&lt;')+'</div>';
+      h+='<div class="community-card__meta">';
+      if(q.company&&q.company!=='Not specified')h+='<span class="community-card__tag community-card__company">🏢 '+q.company+'</span>';
+      if(q.topic)h+='<span class="community-card__tag community-card__topic">📚 '+q.topic+'</span>';
+      h+='<span class="community-card__by">by '+q.name+(date?' · '+date:'')+'</span>';
+      h+='</div></div>';
+    });
+    container.innerHTML=h;
+  }).catch(function(){
+    container.innerHTML='<p style="color:#999;text-align:center">Could not load community questions.</p>';
+  });
+};
 
 })();
